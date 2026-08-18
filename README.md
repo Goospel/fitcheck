@@ -38,6 +38,7 @@ uv run pytest
 
 - **[plan.md](plan.md)** — 누가 뭘 언제 (담당·일정·리스크)
 - **[CLAUDE.md](CLAUDE.md)** — 어떻게 쓰는가 (확정 상수·스택 규약·디렉터리 소유권·git)
+- **[docs/open-questions.md](docs/open-questions.md)** — 아직 안 정해진 것 (막힘 · 임시 진행 · 운영)
 - [PRD](https://www.notion.so/PRD-AI-FitCheck-3b722a79abb58106a343cf9c92b82e61)
 - [화면 설계서](https://www.notion.so/AI-FitCheck-3b722a79abb581498813d975f9ddc0ca)
 

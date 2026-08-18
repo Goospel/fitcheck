@@ -73,6 +73,21 @@
 | 이미지 생성 타임아웃 | 10분 |
 | 핏 리포트 계산 | 100ms 이내 |
 
+### ⛔ 여기 없는 값은 아직 확정된 게 아니다
+
+위 표에 없다고 해서 "자유롭게 정해도 되는 값"이 아니다. **아직 팀이 안 정한 공백**이다.
+
+| 미확정 | 상세 |
+|---|---|
+| 기장 5단계 판정 기준 (경계 4개) — 문구는 확정, 기준이 없다 | [Q1](docs/open-questions.md) |
+| 소매 3단계 판정 기준 (경계 2개) | [Q2](docs/open-questions.md) |
+| A4 신체 치수 추정 계수 | [Q3](docs/open-questions.md) |
+| 어깨·허리·소매도 등급 문구를 갖는지 | [Q4](docs/open-questions.md) |
+
+이 중 하나가 필요해지면 **구현을 멈추고 [docs/open-questions.md](docs/open-questions.md)를 읽은 뒤 사용자에게 묻는다.** 임시값을 넣고 진행하지 않는다.
+
+핏 등급 문구 5종은 확정이고 `fit/grade.py` 에 있다 — **새로 타이핑하지 말고 `from fit.grade import THRESHOLDS, TIGHTEST` 로 가져온다.**
+
 ---
 
 ## 2. 기술 스택 — 정해진 것을 정해진 대로 쓴다
