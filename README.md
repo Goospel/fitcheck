@@ -18,8 +18,26 @@
 
 이미지 생성이 실패해도 핏 리포트가 남으므로 서비스는 성립한다.
 
+## 시작하기
+
+```bash
+uv sync
+cp .env.example .env
+uv run uvicorn main:app --reload
+```
+
+`http://localhost:8000/docs` 에 지금까지 만들어진 API가 전부 뜬다. 프론트는 이 주소를 보면 된다.
+
+```bash
+uv run pytest
+```
+
+스택 목록과 선정 이유는 [plan.md 2절](plan.md), 코드에서 지킬 규약은 [CLAUDE.md 2절](CLAUDE.md).
+
 ## 문서
 
+- **[plan.md](plan.md)** — 누가 뭘 언제 (담당·일정·리스크)
+- **[CLAUDE.md](CLAUDE.md)** — 어떻게 쓰는가 (확정 상수·스택 규약·디렉터리 소유권·git)
 - [PRD](https://www.notion.so/PRD-AI-FitCheck-3b722a79abb58106a343cf9c92b82e61)
 - [화면 설계서](https://www.notion.so/AI-FitCheck-3b722a79abb581498813d975f9ddc0ca)
 
