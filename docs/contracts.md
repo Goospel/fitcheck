@@ -85,6 +85,37 @@ from fit.report import Body, Garment, build_report
 
 **순수 함수다.** DB·네트워크·시간에 의존하지 않으므로 이미지 생성이 실패해도 이 부분은 산다.
 
+### 사이즈 비교 (F-10)
+
+`fit.compare.compare_sizes`. **계약 2를 손대지 않고 중첩한다** — `report` 안은 위 표와 완전히 같으므로 프론트는 단일 리포트 화면에 쓰던 컴포넌트를 그대로 재사용한다.
+
+```json
+{
+  "sizes": [
+    { "sizeName": "M", "report": { "fitGrade": "레귤러핏",   "gaugeLevel": 3, "chestEase": 10.0, "...": "계약 2와 동일" } },
+    { "sizeName": "L", "report": { "fitGrade": "세미오버핏", "gaugeLevel": 4, "chestEase": 18.0, "...": "계약 2와 동일" } }
+  ],
+  "recommendedSize": "M"
+}
+```
+
+| 키 | 뜻 |
+|---|---|
+| `sizes` | **넘긴 순서 그대로.** 프론트가 왼쪽부터 이 순서로 게이지를 그린다 |
+| `sizes[].sizeName` | 의류 등록 때 받은 사이즈명. `"M"` · `"95"` 등 자유 문자열이다 |
+| `sizes[].report` | 계약 2 그대로. 키가 하나도 다르지 않다 |
+| `recommendedSize` | 추천 사이즈명. **선호 핏 미설정이면 `null`** |
+
+**추천 규칙**: 선호 핏과의 단계 차(`gradeDistance`)가 가장 작은 사이즈. 동점이면 여유량이 큰 쪽을 고른다 — 큰 옷을 사게 하는 편이 작은 옷보다 낫다 ([CLAUDE.md 1절](../CLAUDE.md) 신축성 미입력 처리와 같은 원칙).
+
+**선호 핏이 없으면 추천하지 않는다.** 어느 쪽이 나은지 정할 근거가 없어 기준을 지어내지 않았다. 대신 각 리포트의 `showPreferenceCta` 가 켜져 나가므로 프론트가 선호 핏 설정을 유도한다.
+
+```python
+from fit.compare import compare_sizes
+
+비교 = compare_sizes(몸, {"M": 옷M, "L": 옷L})   # 사이즈명 → 의류 치수
+```
+
 ---
 
 ## 계약 3 · 잡 상태 모델 (김정빈)
