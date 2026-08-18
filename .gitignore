@@ -1,0 +1,18 @@
+# 의존성
+node_modules/
+.venv/
+__pycache__/
+
+# 빌드 산출물
+dist/
+build/
+.next/
+
+# 환경변수 — 절대 커밋 금지
+.env
+.env.*
+!.env.example
+
+# 로컬 잔재
+.DS_Store
+.commit-msg-tmp
