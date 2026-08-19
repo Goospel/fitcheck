@@ -60,9 +60,18 @@ def photo_key(user_id: uuid.UUID, fmt: str, garment_id: uuid.UUID | None = None)
 
 
 async def upload(key: str, data: bytes, fmt: str) -> None:
-    """같은 키면 덮어쓴다 — 사진을 다시 올리는 것이 새 파일을 만드는 일이 아니다."""
+    """같은 키면 덮어쓴다 — 사진을 다시 올리는 것이 새 파일을 만드는 일이 아니다.
+
+    ⚠️ **`cacheControl` 을 0 으로 준다.** 기본값은 3600 이라 CDN 이 한 시간 들고 있고,
+       그러면 파일을 지운 뒤에도 **이미 발급된 서명 URL 로 캐시본이 계속 나온다**
+       (실측: 계정을 지웠는데 옛 URL 이 200 을 돌려줬다). 전신 사진이라 「계정을
+       지우면 사라진다」가 한 시간 뒤에 참이 되면 안 된다. 우리 규모에서 매번
+       원본을 읽는 비용은 사람당 사진 몇 장이라 없는 것과 같다.
+    """
     await _client().from_(BUCKET).upload(
-        key, data, {"content-type": f"image/{fmt.lower()}", "upsert": "true"}
+        key,
+        data,
+        {"content-type": f"image/{fmt.lower()}", "upsert": "true", "cacheControl": "0"},
     )
 
 
