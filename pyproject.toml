@@ -17,6 +17,7 @@ dependencies = [
     "replicate>=1.0",
     "python-multipart>=0.0.17",
     "pillow>=12.3.0",
+    "httpx>=0.28",           # D4 · OpenAI images/edits 실호출 (images/generate.py)
 ]
 
 [dependency-groups]

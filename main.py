@@ -1,10 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.errors import register_error_handlers
+from jobs import worker
 
-app = FastAPI(title="FitCheck API", docs_url="/docs")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # DB 가 없어도 앱은 떠야 한다 (core/config.py 와 같은 약속) — 워커도 그 값을 따른다
+    if settings.database_url:
+        await worker.reset_orphaned_jobs()
+        worker.start_workers()
+    yield
+    await worker.stop_workers()
+
+
+app = FastAPI(title="FitCheck API", docs_url="/docs", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

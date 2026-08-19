@@ -34,6 +34,21 @@ _EXT = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
 # 형식이 늘었는데 매핑을 빠뜨리면 **그 형식만 업로드에서 터진다.** 임포트 때 잡는다
 assert set(_EXT) == set(ALLOWED_FORMATS), "지원 형식과 확장자 매핑이 어긋났다"
 
+# 확장자 → mime. D4 워커가 저장된 사진을 다시 읽어 OpenAI 에 넘길 때 content-type 을
+# 파일 내용이 아니라 **경로의 확장자로** 판단한다 — 저장할 때부터 확장자가 형식과 맞는다
+_MIME_BY_EXT = {ext: f"image/{fmt.lower()}" for fmt, ext in _EXT.items()}
+
+
+def mime_of(key: str) -> str:
+    """경로 확장자 → mime. D4 워커가 저장된 원본을 다시 읽어 OpenAI 에 넘길 때 쓴다."""
+    ext = key.rsplit(".", 1)[-1]
+    return _MIME_BY_EXT.get(ext, "application/octet-stream")
+
+
+def result_key(user_id: uuid.UUID, fitting_id: uuid.UUID) -> str:
+    """생성된 착용 이미지 저장 경로. 사용자 폴더 바로 아래, 원본 사진들과 같은 규칙."""
+    return f"{user_id}/result-{fitting_id}.png"
+
 
 @lru_cache(maxsize=1)
 def _client() -> ASupabaseStorageClient:
@@ -78,6 +93,11 @@ async def upload(key: str, data: bytes, fmt: str) -> None:
     await _client().from_(BUCKET).upload(
         key, data, {"content-type": f"image/{fmt.lower()}", "upsert": "true"}
     )
+
+
+async def download(key: str) -> bytes:
+    """DB 없이 저장소에서 원본 바이트를 가져온다. D4 워커가 OpenAI 에 넘길 때 쓴다."""
+    return await _client().from_(BUCKET).download(key)
 
 
 async def signed_urls(keys) -> dict[str, str]:

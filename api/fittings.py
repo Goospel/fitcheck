@@ -227,9 +227,20 @@ async def analyze(
         report=report.model_dump(by_alias=True),   # DB 에서도 프론트와 같은 키로 읽히게
     )
     db.add(fitting)
+
+    # D4 · 두 사진(인물·제품컷)이 다 있어야 이미지를 만든다. 하나라도 없으면
+    # 잡을 만들지 않는다 — 없음 자체가 「리포트만」이라는 상태다 (REPORT_ONLY)
+    profile_photo = (
+        await db.execute(select(Profile.photo_path).where(Profile.user_id == user.id))
+    ).scalar_one()
+    job_status = None
+    if profile_photo and garment.photo_path:
+        await db.flush()   # ImageJob.fitting_id 가 가리킬 fitting.id 를 미리 채운다
+        db.add(ImageJob(fitting_id=fitting.id))
+        job_status = "대기"
+
     await db.commit()
-    # 잡을 만들지 않았으므로 「리포트만」이다. 이미지 파이프라인이 붙으면 여기서 큐에 넣는다
-    return _view(fitting, garment, None)
+    return _view(fitting, garment, job_status)
 
 
 @router.get("/{fitting_id}")
