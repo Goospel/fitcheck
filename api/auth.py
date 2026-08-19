@@ -9,7 +9,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from pydantic import Field
+from pydantic import AfterValidator, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,8 +25,21 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # 라이브러리를 하나 더 붙이는 대신 패턴 한 줄. 형식 검증은 어차피 오타를 거르는 용도다
 Email = Annotated[str, Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=255)]
 
-# ⚠️ 최소 8자는 PRD 에 없다 — docs/open-questions.md T7. 바꾸려면 여기 한 곳만 고친다
-Password = Annotated[str, Field(min_length=8, max_length=128)]
+def _two_kinds(pw: str) -> str:
+    """PRD 7.8 — 영문·숫자·기호 중 **2종 이상**. 특수문자를 강제하지는 않는다."""
+    영문 = {c for c in pw if "a" <= c.lower() <= "z"}
+    숫자 = {c for c in pw if c.isdigit()}
+    # 그 밖은 전부 「기호」다 — 한글도 여기 들어간다.
+    # `isalnum()` 은 한글에 True 라 한글+숫자를 1종으로 잘못 센다
+    기호 = set(pw) - 영문 - 숫자
+    종류 = sum(map(bool, (영문, 숫자, 기호)))
+    if 종류 < 2:
+        raise ValueError("영문·숫자·기호 중 2종 이상을 섞어 주세요")
+    return pw
+
+
+# PRD 7.8 — 8자 이상 + 2종 조합. 상한 128 은 우리가 정한 값이다 (bcrypt 72바이트는 별도)
+Password = Annotated[str, Field(min_length=8, max_length=128), AfterValidator(_two_kinds)]
 
 
 def _normalize(email: str) -> str:

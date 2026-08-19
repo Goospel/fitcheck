@@ -26,8 +26,8 @@ class Test보정없음:
     @pytest.mark.parametrize(
         "chest_ease, expected",
         [
-            (-30, "타이트핏"),
-            (0 - JUST_UNDER, "타이트핏"),
+            (-30, "너무 작음"),
+            (0 - JUST_UNDER, "너무 작음"),
             (0, "슬림핏"),          # 하한 포함
             (6 - JUST_UNDER, "슬림핏"),
             (6, "레귤러핏"),         # 하한 포함
@@ -48,7 +48,7 @@ class Test신축성_좋음:
     @pytest.mark.parametrize(
         "chest_ease, expected",
         [
-            (-6 - JUST_UNDER, "타이트핏"),
+            (-6 - JUST_UNDER, "너무 작음"),
             (-6, "슬림핏"),
             (0 - JUST_UNDER, "슬림핏"),
             (0, "레귤러핏"),
@@ -68,7 +68,7 @@ class Test신축성_약간:
     @pytest.mark.parametrize(
         "chest_ease, expected",
         [
-            (-4 - JUST_UNDER, "타이트핏"),
+            (-4 - JUST_UNDER, "너무 작음"),
             (-4, "슬림핏"),
             (2 - JUST_UNDER, "슬림핏"),
             (2, "레귤러핏"),
@@ -100,10 +100,31 @@ class Test신축성_미입력:
 
 def test_신축성이_좋을수록_같은_여유량이_더_헐렁하게_판정된다():
     """보정 방향이 뒤집히면 조용히 반대 사이즈를 추천하게 된다."""
-    순서 = ["타이트핏", "슬림핏", "레귤러핏", "세미오버핏", "오버핏"]
+    순서 = ["너무 작음", "슬림핏", "레귤러핏", "세미오버핏", "오버핏"]
 
     for chest_ease in [-8, -4, 0, 4, 8, 12, 16, 20, 24]:
         없음 = 순서.index(fit_grade(chest_ease, stretch="없음"))
         약간 = 순서.index(fit_grade(chest_ease, stretch="약간"))
         좋음 = 순서.index(fit_grade(chest_ease, stretch="좋음"))
         assert 없음 <= 약간 <= 좋음, f"여유 {chest_ease}cm 에서 보정 방향이 뒤집혔다"
+
+
+class TestPRD_문구_대조:
+    """PRD 6.2.2 「이 표는 확정된 사양입니다」 — 등급명 5개를 그대로 쓴다"""
+
+    def test_0cm_미만은_너무_작음이다(self):
+        from fit.grade import fit_grade
+
+        assert fit_grade(-1) == "너무 작음"
+
+    def test_등급명_5개가_PRD와_같다(self):
+        from fit.grade import GRADE_ORDER
+
+        assert GRADE_ORDER == ("너무 작음", "슬림핏", "레귤러핏", "세미오버핏", "오버핏")
+
+    def test_선호_핏으로는_4개만_고를_수_있다(self):
+        # PRD 7.2 — 슬림 / 레귤러 / 세미오버 / 오버.
+        # 「너무 작음」은 취향이 아니라 경고라 선택지에 없다
+        from fit.grade import PREFERRED_GRADES
+
+        assert PREFERRED_GRADES == ("슬림핏", "레귤러핏", "세미오버핏", "오버핏")

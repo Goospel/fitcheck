@@ -141,11 +141,15 @@ class Test정확도는_5점_만점:
 
 
 class Test선호_핏은_등급_목록에서만:
-    async def test_등급_5종은_받는다(self, client, 인증):
-        from fit.grade import GRADE_ORDER
+    async def test_선택_가능한_4종은_받는다(self, client, 인증):
+        from fit.grade import PREFERRED_GRADES
 
-        for 등급 in GRADE_ORDER:
+        for 등급 in PREFERRED_GRADES:
             assert (await 저장(client, 인증, preferredGrade=등급)).status_code == 200
+
+    async def test_너무_작음은_선호_핏이_아니다(self, client, 인증):
+        # PRD 7.2 — 선택지는 슬림/레귤러/세미오버/오버 4개다. 경고를 선호할 사람은 없다
+        assert (await 저장(client, 인증, preferredGrade="너무 작음")).status_code == 422
 
     async def test_목록에_없는_문구는_거부한다(self, client, 인증):
         assert (await 저장(client, 인증, preferredGrade="아무거나핏")).status_code == 422
