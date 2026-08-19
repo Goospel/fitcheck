@@ -104,10 +104,26 @@ class Test치수는_값과_출처를_같이_보낸다:
         r = await 저장(client, 인증, shoulder=44.0)
         assert r.json()["measurements"]["shoulder"] == {"value": 44.0, "source": "실측"}
 
-    async def test_안_넣은_치수는_추정이다(self, client, 인증):
-        # A4 가 아직 없어 value 는 null 이지만 자리는 지금부터 있다 (Q3)
+    async def test_안_넣은_치수는_추정으로_채워진다(self, client, 인증):
+        # A4 가 붙었다 (Q3 종결). **값이 있고 출처가 추정이다** — null 이 아니다
         r = await 저장(client, 인증)
-        assert r.json()["measurements"]["chest"] == {"value": None, "source": "추정"}
+        가슴 = r.json()["measurements"]["chest"]
+        assert 가슴["source"] == "추정"
+        assert 가슴["value"] is not None and 가슴["value"] > 0
+
+    async def test_추정값은_A4가_내는_값과_같다(self, client, 인증):
+        # API 가 딴 데서 따로 계산하면 프로필과 리포트가 조용히 갈라진다
+        from fit.estimate import estimate_body
+
+        r = await 저장(client, 인증)
+        기대 = estimate_body(r.json()["height"], r.json()["weight"], r.json()["gender"])
+        for 이름 in ("chest", "shoulder", "waist", "arm"):
+            assert r.json()["measurements"][이름]["value"] == getattr(기대, 이름), 이름
+
+    async def test_실측을_넣으면_추정이_아니라_그_값이_나온다(self, client, 인증):
+        # 덮어쓰기 방향이 뒤집히면 사용자가 직접 잰 값이 버려진다
+        r = await 저장(client, 인증, chest=88.0)
+        assert r.json()["measurements"]["chest"] == {"value": 88.0, "source": "실측"}
 
     async def test_네_치수가_전부_나온다(self, client, 인증):
         r = await 저장(client, 인증)

@@ -49,13 +49,36 @@ class Test분석_전에_갖춰야_할_것:
         assert 분석.status_code == 404
         assert 분석.json()["error"]["code"] == "PROFILE_NOT_FOUND"
 
-    async def test_가슴이나_어깨_실측이_없으면_거절한다(self, client, 인증):
-        # A4 추정기가 없다. 지어낸 값으로 리포트를 내지 않는다
+    async def test_실측이_없어도_추정으로_리포트를_낸다(self, client, 인증):
+        # A4 가 붙었다. 키·몸무게·성별만으로도 결과가 나온다 (PRD 7.2)
         await client.put("/profile", json={"height": 175, "weight": 70, "gender": "남성"}, headers=인증)
         r = await client.post("/garments", json=의류, headers=인증)
         분석 = await client.post("/fittings", json={"garmentId": r.json()["id"]}, headers=인증)
-        assert 분석.status_code == 400
-        assert 분석.json()["error"]["code"] == "MEASUREMENTS_REQUIRED"
+        assert 분석.status_code == 201
+        # ⚠️ **추정으로 냈다는 것이 응답에 보여야 한다** — 실측과 같은 얼굴이면 안 된다
+        assert 분석.json()["report"]["confidence"] == "추정"
+
+    async def test_추정_리포트도_등급이_나온다(self, client, 인증):
+        await client.put("/profile", json={"height": 175, "weight": 70, "gender": "남성"}, headers=인증)
+        r = await client.post("/garments", json=의류, headers=인증)
+        분석 = await client.post("/fittings", json={"garmentId": r.json()["id"]}, headers=인증)
+        from fit.grade import GRADE_ORDER
+
+        assert 분석.json()["report"]["fitGrade"] in GRADE_ORDER
+
+    async def test_실측한_값은_추정이_덮지_않는다(self, client, 인증):
+        # 가슴만 직접 넣으면 가슴은 그 값이고 어깨만 추정된다
+        await client.put(
+            "/profile",
+            json={"height": 175, "weight": 70, "gender": "남성", "chest": 88.0},
+            headers=인증,
+        )
+        r = await client.post("/garments", json=의류, headers=인증)
+        분석 = await client.post("/fittings", json={"garmentId": r.json()["id"]}, headers=인증)
+        # 가슴 여유 = 의류 가슴단면 × 2 − 88.0 이어야 한다 (추정값 99.2 가 아니라)
+        기대 = 의류["chestWidth"] * 2 - 88.0
+        assert 분석.json()["report"]["chestEase"] == 기대
+        assert 분석.json()["report"]["confidence"] == "추정"   # 허리·어깨는 여전히 추정
 
     async def test_없는_의류면_404(self, client, 인증):
         await client.put("/profile", json=프로필, headers=인증)
