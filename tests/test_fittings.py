@@ -75,7 +75,15 @@ class Test핏_분석:
         인증, 의류_id = 준비
         r = await client.post("/fittings", json={"garmentId": 의류_id}, headers=인증)
         assert r.status_code == 201
-        assert set(r.json()) == {"id", "garmentId", "report", "createdAt"}
+        # 만들 때와 조회할 때가 같은 모양이다 — 프론트가 렌더러를 하나만 쓴다
+        assert set(r.json()) == {"id", "status", "garment", "report", "imagePath", "createdAt"}
+
+    async def test_만든_직후에는_리포트만_상태다(self, client, 준비):
+        # 이미지 잡을 만들지 않았다. 기다릴 것이 없다 (F-09)
+        인증, 의류_id = 준비
+        r = await client.post("/fittings", json={"garmentId": 의류_id}, headers=인증)
+        assert r.json()["status"] == "리포트만"
+        assert r.json()["garment"]["id"] == 의류_id
 
     async def test_리포트가_계약_2_모양_그대로다(self, client, 준비):
         인증, 의류_id = 준비

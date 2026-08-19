@@ -13,6 +13,19 @@ from core.schema import Schema
 from fit.ease import chest_ease, shoulder_diff, sleeve_diff, waist_ease
 from fit.grade import GRADE_ORDER, fit_grade
 
+# 기장 5단계 · 소매 3단계 문구 — PRD 6.2.3 확정. **여기가 유일한 출처다.**
+# 판정 기준(경계 숫자)은 아직 없지만(Q1 · Q2) 문구는 확정이라 미리 못 박아 둔다.
+# A3(랜드마크 판정)와 D3(프롬프트 변환)가 둘 다 이 목록을 봐야 한다.
+LENGTH_LABELS: tuple[str, ...] = (
+    "허리 위로 올라오는 크롭 기장",
+    "허리에 딱 떨어지는 기장",
+    "골반에 걸치는 기본 기장",
+    "엉덩이를 반쯤 덮는 기장",
+    "엉덩이를 완전히 덮는 롱 기장",
+)
+
+SLEEVE_LABELS: tuple[str, ...] = ("손목 위", "손목", "손등 일부 덮음")
+
 # 신뢰도 배지 기준 — 이 셋을 전부 직접 입력했을 때만 "실측"이다.
 # 팔길이는 등급 판정에 안 쓰이므로 배지에도 넣지 않는다.
 CONFIDENCE_FIELDS = frozenset({"chest", "shoulder", "waist"})

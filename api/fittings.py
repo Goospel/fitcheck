@@ -1,4 +1,4 @@
-"""B4 · 핏 분석 API + F-10 · 사이즈 비교
+"""B4 · 핏 분석 + F-10 · 사이즈 비교 + B5 · 히스토리 + B6 · 결과 조회
 
 계산은 전부 `fit/` 에 있다. 여기는 **DB 에서 꺼내 넘기고 결과를 돌려주는 층**이고,
 판정 로직을 여기에 새로 쓰지 않는다.
@@ -9,9 +9,11 @@
 """
 
 import uuid
+from collections import Counter
 from datetime import datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,7 @@ from api.profile import MEASUREMENTS
 from auth.security import current_user
 from core.errors import AppError
 from core.schema import Schema
-from db.models import Fitting, Garment, Profile, User
+from db.models import FITTING_STATUSES, REPORT_ONLY, Fitting, Garment, ImageJob, Profile, User
 from db.session import get_session
 from fit.compare import SizeComparison, compare_sizes
 from fit.report import Body, FitReport
@@ -33,15 +35,33 @@ router = APIRouter(prefix="/fittings", tags=["fittings"])
 MAX_COMPARE = 10
 
 
-class FittingRequest(Schema):
-    garment_id: uuid.UUID
+class GarmentBrief(Schema):
+    """목록을 그리려고 의류를 하나씩 다시 물어보게 하지 않는다"""
+
+    id: uuid.UUID
+    kind: str
+    size_name: str
+    photo_path: str | None
 
 
 class FittingResponse(Schema):
+    """B6 · 이미지 + 리포트 통합. **이미지가 없어도 성립한다** (F-09)"""
+
     id: uuid.UUID
-    garment_id: uuid.UUID
-    report: FitReport        # 계약 2 그대로 중첩한다
+    status: str                  # 계약 3 — 대기/생성중/완료/실패/리포트만
+    garment: GarmentBrief
+    report: FitReport            # 계약 2 그대로 중첩한다
+    image_path: str | None       # 생성 전·실패 시 None
     created_at: datetime
+
+
+class HistoryResponse(Schema):
+    items: list[FittingResponse]
+    counts: dict[str, int]       # 뱃지용. **거르기와 무관하게 항상 전체를 센다**
+
+
+class FittingRequest(Schema):
+    garment_id: uuid.UUID
 
 
 class CompareRequest(Schema):
@@ -79,6 +99,18 @@ def _to_fit(g: Garment) -> FitGarment:
     )
 
 
+def _view(fitting: Fitting, garment: Garment, job_status: str | None) -> FittingResponse:
+    return FittingResponse(
+        id=fitting.id,
+        # 잡이 없다 = 사진 없이 만든 리포트다. 없음 자체가 상태다
+        status=job_status or REPORT_ONLY,
+        garment=GarmentBrief.model_validate(garment),
+        report=FitReport.model_validate(fitting.report),
+        image_path=fitting.image_path,
+        created_at=fitting.created_at,
+    )
+
+
 async def _owned(ids: list[uuid.UUID], user: User, db: AsyncSession) -> dict[uuid.UUID, Garment]:
     """내 의류만. 남의 것이 섞이면 「없다」로 답한다 — 존재 여부를 흘리지 않는다."""
     rows = await db.scalars(
@@ -88,6 +120,38 @@ async def _owned(ids: list[uuid.UUID], user: User, db: AsyncSession) -> dict[uui
     if len(found) != len(set(ids)):
         raise AppError("GARMENT_NOT_FOUND", "등록된 의류를 찾을 수 없습니다", 404)
     return found
+
+
+@router.get("")
+async def history(
+    status: Literal[FITTING_STATUSES] | None = None,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_session),
+) -> HistoryResponse:
+    """B5 · 내 피팅 목록 + 상태별 개수.
+
+    생성이 10분 걸리는 이상 **결과를 나중에 찾을 유일한 경로**다 (PRD 7.5).
+    개수는 거르기와 무관하게 전체를 센다 — 헤더 뱃지가 필터를 따라가면 안 된다.
+    """
+    rows = (
+        await db.execute(
+            select(Fitting, Garment, ImageJob.status)
+            .join(Garment, Garment.id == Fitting.garment_id)
+            .outerjoin(ImageJob, ImageJob.fitting_id == Fitting.id)
+            .where(Fitting.user_id == user.id)
+            .order_by(Fitting.created_at.desc())
+        )
+    ).all()
+
+    # ponytail: 전부 읽어 파이썬에서 세고 거른다. 한 사람의 피팅이 수백 건을
+    # 넘기면 개수는 GROUP BY 로, 거르기는 WHERE 로 내린다
+    보이는것 = [_view(f, g, s) for f, g, s in rows]
+    개수 = Counter(v.status for v in 보이는것)
+
+    return HistoryResponse(
+        items=[v for v in 보이는것 if status is None or v.status == status],
+        counts={s: 개수.get(s, 0) for s in FITTING_STATUSES},
+    )
 
 
 @router.post("/compare")
@@ -105,7 +169,7 @@ async def compare(
     return compare_sizes(await _body_of(user, db), 사이즈별)
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=201)
 async def analyze(
     body: FittingRequest,
     user: User = Depends(current_user),
@@ -122,9 +186,8 @@ async def analyze(
     )
     db.add(fitting)
     await db.commit()
-    return FittingResponse(
-        id=fitting.id, garment_id=garment.id, report=report, created_at=fitting.created_at
-    )
+    # 잡을 만들지 않았으므로 「리포트만」이다. 이미지 파이프라인이 붙으면 여기서 큐에 넣는다
+    return _view(fitting, garment, None)
 
 
 @router.get("/{fitting_id}")
@@ -133,14 +196,15 @@ async def read(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
 ) -> FittingResponse:
-    fitting = await db.scalar(
-        select(Fitting).where(Fitting.id == fitting_id, Fitting.user_id == user.id)
-    )
-    if fitting is None:
+    """B6 · 결과 조회. 이미지가 없거나 생성이 실패해도 리포트는 그대로 나온다."""
+    row = (
+        await db.execute(
+            select(Fitting, Garment, ImageJob.status)
+            .join(Garment, Garment.id == Fitting.garment_id)
+            .outerjoin(ImageJob, ImageJob.fitting_id == Fitting.id)
+            .where(Fitting.id == fitting_id, Fitting.user_id == user.id)
+        )
+    ).first()
+    if row is None:
         raise AppError("FITTING_NOT_FOUND", "결과를 찾을 수 없습니다", 404)
-    return FittingResponse(
-        id=fitting.id,
-        garment_id=fitting.garment_id,
-        report=FitReport.model_validate(fitting.report),
-        created_at=fitting.created_at,
-    )
+    return _view(*row)

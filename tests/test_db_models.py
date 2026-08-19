@@ -159,3 +159,20 @@ class Test설정이_없어도_앱은_뜬다:
         session.engine.cache_clear()
         assert session.engine().dialect.name == "postgresql"
         session.engine.cache_clear()
+
+
+class Test시각은_반드시_증가한다:
+    """⚠️ Windows 시계 해상도는 ~15ms — 연속으로 만든 행이 같은 `created_at` 을
+    갖는 바람에 「최신이 위로」 정렬이 반반 확률로 뒤집혔다 (실측 5회 중 3회 실패)."""
+
+    def test_같은_틱에_불러도_값이_겹치지_않는다(self):
+        from db.models import _now
+
+        연속 = [_now() for _ in range(200)]
+        assert len(set(연속)) == 200
+        assert 연속 == sorted(연속)
+
+    def test_계약_3_상태가_다섯이다(self):
+        from db.models import FITTING_STATUSES
+
+        assert set(FITTING_STATUSES) == {"대기", "생성중", "완료", "실패", "리포트만"}

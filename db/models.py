@@ -21,7 +21,7 @@
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import (
     JSON,
@@ -46,14 +46,32 @@ def _pk() -> Mapped[uuid.UUID]:
     return mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
 
 
+_마지막 = datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _now() -> datetime:
+    """**반드시 증가하는** 현재 시각.
+
+    ⚠️ Windows 의 시계 해상도는 ~15ms 라 연속으로 만든 행 두 개가 **같은
+    `created_at`** 을 갖는다 — 「최신이 위로」 정렬이 반반 확률로 뒤집힌다
+    (실측: 같은 테스트 5회 중 3회 실패). 리눅스에서는 마이크로초라 안 보이지만,
+    배포 대상의 시계에 정렬을 맡기지 않는다.
+
+    같은 값이 나오면 1마이크로초를 더해 순서를 보장한다. 프로세스 안에서만
+    단조 증가하고, 워커가 여럿이면 실제 시각으로 갈린다 — 목록 정렬에는 충분하다.
+    """
+    global _마지막
+    now = datetime.now(timezone.utc)
+    if now <= _마지막:
+        now = _마지막 + timedelta(microseconds=1)
+    _마지막 = now
+    return now
+
+
 def _created_at() -> Mapped[datetime]:
-    """파이썬 기본값을 같이 둔다 — SQLite 의 `now()` 는 **초 단위**라 같은 초에 만든
-    행들이 순서를 잃는다. server_default 는 ORM 을 안 거친 INSERT 용으로 남겨 둔다."""
-    return mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        server_default=func.now(),
-    )
+    """server_default 는 ORM 을 안 거친 INSERT 용으로 남겨 둔다.
+    SQLite 의 `now()` 는 **초 단위**라 그것만으로는 순서가 뭉갠다."""
+    return mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())
 
 
 class User(Base):
@@ -96,7 +114,7 @@ class Profile(Base):
     preferred_grade: Mapped[str | None] = mapped_column(String(16))   # 미설정이면 계약 2 의 CTA 가 켜진다
     photo_path: Mapped[str | None] = mapped_column(String(512))       # 전신 사진. 서명 URL 로만 접근한다
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=_now, onupdate=_now, server_default=func.now()
     )
 
 
@@ -152,6 +170,17 @@ class Fitting(Base):
     report: Mapped[dict] = mapped_column(JSON)                     # 계약 2 그대로
     image_path: Mapped[str | None] = mapped_column(String(512))    # 완료 전·실패 시 NULL
     created_at: Mapped[datetime] = _created_at()
+
+
+# ── 계약 3 · 잡 상태 (PRD 7.5) ─────────────────────────────────────────
+# 큐에 실제로 들어가는 상태 넷.
+JOB_STATUSES: tuple[str, ...] = ("대기", "생성중", "완료", "실패")
+
+# 잡 자체가 없는 경우 — 사진 없이 리포트만 만든 경로 (F-09). 기다릴 것이 없다.
+# image_job 행이 아니라 **없음**이 곧 이 상태다
+REPORT_ONLY = "리포트만"
+
+FITTING_STATUSES: tuple[str, ...] = (*JOB_STATUSES, REPORT_ONLY)
 
 
 class ImageJob(Base):
