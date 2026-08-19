@@ -177,3 +177,52 @@ from fit.compare import compare_sizes
 ## 계약 3 · 잡 상태 모델 (김정빈)
 
 > 대기 / 생성중 / 완료 / 실패 / 리포트만 — 상태 문자열과 폴링 응답 모양이 확정되면 여기에.
+
+---
+
+## 부록 · 인증 API (KimZion — BE-2 인수분)
+
+계약 3종에는 없지만 **프론트가 제일 먼저 붙는 곳**이라 여기 적는다. 전체 스키마는 서버가 뜨면 `/docs`(Swagger)가 항상 최신이다 — 아래는 거기서 안 보이는 판단들이다.
+
+### 로그인 화면은 `POST /auth/check` 하나로 갈린다
+
+PRD는 가입/로그인 탭을 두지 않는다. 이메일을 먼저 받고 **서버가 판단해 분기**한다.
+
+```
+POST /auth/check   { "email": "a@b.com" }   →   { "exists": true }
+                                                  true  → 비밀번호 입력 (로그인)
+                                                  false → 비밀번호 설정 (가입)
+```
+
+### 가입·로그인은 응답이 같다
+
+```
+POST /auth/signup  { "email": ..., "password": ..., "isOver14": true }   → 201
+POST /auth/login   { "email": ..., "password": ... }                     → 200
+                                    ↓ 둘 다
+                            { "token": "...", "userId": "uuid" }
+```
+
+**가입하면 토큰을 바로 준다** — 가입 직후 로그인을 또 시키지 않는다.
+이후 요청은 `Authorization: Bearer <token>`. 내 정보는 `GET /auth/me` → `{ "userId", "email" }`.
+
+### 에러 코드
+
+| 코드 | HTTP | 언제 |
+|---|---|---|
+| `EMAIL_TAKEN` | 409 | 이미 가입된 이메일 |
+| `AGE_RESTRICTED` | 400 | `isOver14` 가 false |
+| `PASSWORD_TOO_LONG` | 400 | 72바이트 초과 — **한글 24자면 도달한다** |
+| `INVALID_CREDENTIALS` | 401 | 로그인 실패. **계정 없음과 비밀번호 틀림이 같은 응답이다** |
+| `UNAUTHORIZED` · `INVALID_TOKEN` | 401 | 토큰이 없거나 만료·위조 |
+| `VALIDATION_ERROR` | 422 | 이메일 형식·비밀번호 8자 미만·필드 누락 |
+
+모양은 전부 `{ "error": { "code": ..., "message": ... } }` (core/errors.py).
+
+### 알고 있어야 하는 것 셋
+
+**① 이메일은 대소문자를 안 가린다.** 저장·조회 모두 소문자로 정규화한다 — `A@B.com` 과 `a@b.com` 은 같은 계정이다.
+
+**② 비밀번호 상한이 문자 수가 아니라 바이트다.** bcrypt 한계라 한글 24자에서 걸린다 ([T7](open-questions.md)).
+
+**③ 토큰 유효기간은 7일** (`JWT_EXPIRE_HOURS=168`). 만료·위조·손상 토큰은 전부 401 하나로 떨어진다.
