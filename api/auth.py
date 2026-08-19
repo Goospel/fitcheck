@@ -19,6 +19,7 @@ from core.errors import AppError
 from core.schema import Schema
 from db.models import User
 from db.session import get_session
+from images import storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -121,11 +122,13 @@ async def delete_me(
 ) -> None:
     """계정 삭제. 프로필·의류·피팅 결과가 외래키 CASCADE 로 같이 사라진다.
 
-    ⚠️ **저장소의 사진은 아직 안 지운다** — 업로드(D1)가 없어 올라간 파일이 없다.
-    D1 이 생기면 여기서 삭제 함수를 호출해야 한다.
+    ⚠️ **저장소의 사진을 먼저 지운다.** 전신 사진이라 계정을 지웠는데 남아 있으면
+    그게 사고다. 순서가 반대면 — 행을 먼저 지우고 저장소에서 실패하면 — 누구의
+    것인지 알 방법 없이 파일만 남는다. 이 순서면 실패해도 다시 시도할 수 있다.
 
     로그아웃 엔드포인트는 두지 않는다. JWT 는 서버에 상태가 없어 할 일이 없고,
     프론트가 토큰을 버리면 그게 로그아웃이다.
     """
+    await storage.remove_user_photos(user.id)
     await db.delete(user)
     await db.commit()

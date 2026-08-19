@@ -61,3 +61,35 @@ def _fast_bcrypt(monkeypatch):
 
     원본 = bcrypt.gensalt
     monkeypatch.setattr(bcrypt, "gensalt", lambda rounds=4, prefix=b"2b": 원본(4, prefix))
+
+
+@pytest.fixture(autouse=True)
+def 저장소(monkeypatch):
+    """가짜 Supabase Storage.
+
+    ⚠️ **autouse 다.** 픽스처를 요청하는 걸 잊은 테스트가 실제 저장소에 붙는 일이
+    없어야 한다 — 팀 공용 자원이다 (CLAUDE.md 2절).
+    """
+    from images import storage
+
+    파일: dict[str, bytes] = {}
+
+    async def upload(key, data, fmt):
+        파일[key] = data
+
+    async def signed_urls(keys):
+        # 없는 키는 빠진다 — 진짜 Storage 도 그 항목에 error 를 실어 준다
+        return {k: f"https://signed.test/{k}?token=fake" for k in dict.fromkeys(keys) if k in 파일}
+
+    async def remove(keys):
+        for k in keys:
+            파일.pop(k, None)
+
+    async def remove_user_photos(user_id):
+        for k in [k for k in 파일 if k.startswith(f"{user_id}/")]:
+            del 파일[k]
+
+    for 이름, 가짜 in (("upload", upload), ("signed_urls", signed_urls),
+                     ("remove", remove), ("remove_user_photos", remove_user_photos)):
+        monkeypatch.setattr(storage, 이름, 가짜)
+    return 파일
