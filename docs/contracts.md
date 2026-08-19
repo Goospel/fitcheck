@@ -8,7 +8,7 @@
 |---|---|---|
 | 1 · DB 스키마 | KimZion (맹동훈에게서 인수) | ✅ 확정 |
 | 2 · 핏 리포트 JSON | KimZion | ✅ 확정 |
-| 3 · 잡 상태 모델 | 김정빈 | ⬜ 대기 |
+| 3 · 잡 상태 모델 | KimZion (인수) | ✅ 확정 |
 
 ---
 
@@ -175,9 +175,25 @@ from fit.compare import compare_sizes
 
 ---
 
-## 계약 3 · 잡 상태 모델 (김정빈)
+## 계약 3 · 잡 상태 모델 (KimZion — 인수) ✅
 
-> 대기 / 생성중 / 완료 / 실패 / 리포트만 — 상태 문자열과 폴링 응답 모양이 확정되면 여기에.
+`db.models.FITTING_STATUSES`. **문자열을 새로 타이핑하지 말고 여기서 import 한다.**
+
+| 상태 | 뜻 | `image_job` |
+|---|---|---|
+| `리포트만` | 사진 없이 만든 리포트 (F-09). **기다릴 것이 없다** | 행 자체가 없다 |
+| `대기` | 큐에 들어갔고 아직 안 집혔다 | `status="대기"` |
+| `생성중` | 워커가 집어 갔다 | `status="생성중"` |
+| `완료` | 이미지가 나왔다 | `status="완료"` |
+| `실패` | 10분 초과·모델 오류. **리포트는 그대로 남는다** | `status="실패"` |
+
+**`리포트만` 은 `image_job` 행의 값이 아니라 「행이 없음」이다.** 사진을 건너뛴 경로에는 만들 잡이 애초에 없다 — 없는 것을 「대기」로 두면 영원히 안 끝나는 잡이 목록에 남는다.
+
+```python
+from db.models import FITTING_STATUSES, JOB_STATUSES, REPORT_ONLY
+```
+
+`image_job.status` 컬럼은 **자유 문자열**이다. 문구를 바꿔도 공용 DB 에 `ALTER` 를 돌릴 필요가 없다.
 
 ---
 
@@ -315,16 +331,42 @@ GET  /fittings/{id}                                       → 200
 POST /fittings/compare    { "garmentIds": ["a","b"] }     → 200
 ```
 
-### 핏 분석 — 계약 2를 중첩해 돌려준다
+### 핏 분석 · 결과 조회 — **만들 때와 읽을 때가 같은 모양이다**
+
+`POST /fittings` 와 `GET /fittings/{id}` 가 똑같은 것을 돌려준다. 프론트는 렌더러를 하나만 만들면 된다.
 
 ```json
 {
   "id": "uuid",
-  "garmentId": "uuid",
+  "status": "리포트만",
+  "garment": { "id": "uuid", "kind": "티셔츠", "sizeName": "M", "photoPath": null },
   "report": { "fitGrade": "레귤러핏", "gaugeLevel": 3, "...": "계약 2 그대로" },
+  "imagePath": null,
   "createdAt": "2026-08-19T…"
 }
 ```
+
+`status` 는 계약 3. `imagePath` 는 생성 전·실패 시 `null` 이고, **그래도 `report` 는 항상 있다** (F-09 · PRD 7.5).
+
+### 히스토리 — `GET /fittings`
+
+```
+GET /fittings              → 전체
+GET /fittings?status=완료   → 거른 목록 (계약 3 의 5개 중 하나. 그 밖은 422)
+```
+
+```json
+{
+  "items": [ { "…위와 같은 모양…" } ],
+  "counts": { "대기": 0, "생성중": 0, "완료": 1, "실패": 0, "리포트만": 2 }
+}
+```
+
+| | |
+|---|---|
+| `items` | 최신순. 각 항목에 **의류 정보가 같이 들어 있다** — 한 줄 그리려고 의류를 다시 물어보지 않아도 된다 |
+| `counts` | 헤더 뱃지용. **거르기와 무관하게 항상 전체를 센다** — 필터를 걸어도 뱃지는 안 변한다 |
+| | 5개 키는 0이어도 사라지지 않는다 |
 
 **리포트는 그 시점 스냅샷이다.** 프로필을 나중에 바꿔도 `GET /fittings/{id}` 는 만들 때의 판정을 그대로 돌려준다 — 히스토리가 과거를 다시 쓰면 안 된다.
 
@@ -353,3 +395,28 @@ POST /fittings/compare    { "garmentIds": ["a","b"] }     → 200
 | `DUPLICATE_SIZE_NAME` | 400 | 비교 목록에 같은 사이즈명이 둘 |
 
 ⚠️ **`MEASUREMENTS_REQUIRED` 는 지금 실제로 자주 난다.** A4가 없어 프로필 1단계(키·몸무게·성별)만 채운 사용자는 리포트를 받을 수 없다. 지어낸 추정값으로 리포트를 내는 것보다 낫다고 판단했다 ([Q3](open-questions.md)).
+
+---
+
+## 부록 · 이미지 프롬프트 (D3 · 내부용)
+
+`images.prompt.build_prompt(report)` → 영어 지시문 한 덩어리.
+
+⚠️ **이 문장은 사용자에게 절대 노출되지 않는다.** 화면에 보이는 것은 한국어 핏 리포트뿐이고, 영어는 이미지 생성 모델에게만 간다 (PRD 6.3).
+
+```
+Photorealistic photo of the person from the reference image wearing the garment
+from the product image. Keep the person's face, hair and body proportions exactly
+as in the reference image. Keep the garment's design, color and pattern exactly as
+in the product image. A slightly roomy fit with noticeable ease across the chest.
+```
+
+**한국어 라벨 → 영어 지시 매핑은 확정 목록에서만 온다** — `GRADE_ORDER` · `LENGTH_LABELS` · `SLEEVE_LABELS`. 목록과 매핑이 어긋나면 **임포트 시점에 터진다**(그 등급만 조용히 지시가 빠지는 걸 막는다).
+
+| 지금 나가는 것 | 아직 안 나가는 것 |
+|---|---|
+| 핏 등급 5종 | 기장 — A3 미구현 ([Q1](open-questions.md)) |
+| | 소매 — A3 미구현 ([Q2](open-questions.md)) |
+| | 어깨 드롭숄더 — **몇 cm부터인지가 없다** ([Q4 잔여분](open-questions.md)) |
+
+기장·소매 매핑은 **이미 다 넣어 뒀다.** A3 가 붙어 `lengthLabel`·`sleeveLabel` 이 채워지면 이 파일을 손대지 않아도 문장이 늘어난다.
