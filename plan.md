@@ -29,7 +29,9 @@ BE-1이 제일 무겁고 BE-2·BE-3은 앞쪽에 몰려 있다. **BE-2가 먼저
 
 > **맹동훈이 작업을 시작한다면** — `db/models.py` 는 이미 `main` 에 있다. 다시 만들지 말고 팀에 말한 뒤 이어받는다. 남은 BE-2 작업은 C1(인증) · B2(프로필) · C5 이고, 그중 아직 아무도 손대지 않은 것을 먼저 가져가면 충돌이 없다.
 
-⚠️ **아직 사람이 해야 하는 것: Supabase 프로젝트 생성.** 코드가 아니라 계정 가입이라 클로드가 대신 못 한다. 이게 없으면 스키마가 있어도 실제 DB 가 없다.
+✅ **Supabase 프로젝트 생성 완료** (2026-08-19 · `fitcheck` · Seoul). 실 DB 에 테이블 5개가 올라갔고 전 구간이 돈다.
+
+⚠️ **아직 사람이 해야 하는 것: Railway 프로젝트 · Replicate 토큰.** 코드가 아니라 계정 가입이라 클로드가 대신 못 한다.
 
 디렉터리 소유권은 [CLAUDE.md 3절](CLAUDE.md)에 있다. 확정 상수(임계값·기장 문구 등)는 [CLAUDE.md 1절](CLAUDE.md).
 
@@ -56,7 +58,7 @@ BE-1이 제일 무겁고 BE-2·BE-3은 앞쪽에 몰려 있다. **BE-2가 먼저
 
 | 무엇 | 누가 | 비고 |
 |---|---|---|
-| Supabase 프로젝트 1개 | 맹동훈 | 만든 뒤 `DATABASE_URL` · `SUPABASE_*` 를 팀에 공유 |
+| ~~Supabase 프로젝트 1개~~ | ~~맹동훈~~ → KimZion | ✅ 완료. `DATABASE_URL` 은 **Session pooler** 문자열을 쓴다 — 형식은 `.env.example` 주석 |
 | Replicate 토큰 | 김정빈 | **카드 등록 필요.** 예산이 없으면 Gemini 무료 티어로 대체 |
 | Railway 프로젝트 | 맹동훈 | GitHub 연결만 하면 URL이 나온다 |
 
@@ -124,9 +126,12 @@ DB도 API도 프론트도 필요 없이 시작할 수 있는 유일한 덩어리
 ## 5. BE-2 · KimZion 인수 (원래 맹동훈) — 스키마 · 인증 · 프로필 · 인프라 · 배포
 
 - [ ] 🔜 **B0 · Supabase 프로젝트 + Railway 연결** (1h) — **이게 없으면 아무도 DB를 못 쓴다**
-  - [ ] ⛔ Supabase 프로젝트 생성 → `.env` 값을 팀에 공유 — **사람이 해야 한다.** 계정 가입이라 클로드가 대신 못 한다
+  - [x] ✅ Supabase 프로젝트 생성 — `fitcheck` · Seoul(ap-northeast-2) · PostgreSQL 17.6. 테이블 5개 · 외래키 CASCADE 5개 확인
   - [x] ✅ `db/session.py` (async 엔진 + 세션) — 엔진은 **처음 쓸 때** 만든다. `DATABASE_URL` 이 없어도 앱은 뜬다
-  - Railway에 GitHub 연결 + 환경변수 등록 → `/health` 가 뜨는지 확인
+  - [x] ✅ 실 DB 스모크 22건 통과 — 가입 → 프로필 → 의류 → 핏 리포트 → 사이즈 비교 → 히스토리 → 탈퇴(CASCADE). **인메모리 SQLite 로만 돌던 코드가 진짜 Postgres 에서 그대로 돌았다**
+  - ⚠️ **연결은 Session pooler 로만 된다.** Direct connection(`db.<ref>.supabase.co`)은 **IPv6 전용**이고(실측 — A 레코드가 없다), Transaction pooler(6543)는 asyncpg 의 prepared statement 를 못 받는다
+  - ⚠️ **Data API(PostgREST)는 꺼 뒀다.** 켠 채로 두면 anon 키만으로 전 테이블이 공개 REST 에 열린다 (PRD 8.2). 우리는 SQLAlchemy 로 직접 붙어서 필요가 없다. **Storage 는 영향 없다** — D1 은 그대로 쓴다
+  - [ ] Railway에 GitHub 연결 + 환경변수 등록 → `/health` 가 뜨는지 확인
   - ⚠️ **에러 규격·CORS·환경변수 로딩·camelCase 베이스는 `core/` 에 이미 있다.** 다시 만들지 말고 인계받아 쓴다
 - [x] ✅ **B1 · DB 스키마** — `db/models.py`. 5테이블 = 계약 1. **B3 · D4 가 여기서 풀렸다**
   - 테이블명은 `user` 가 아니라 **`app_user`** — `user` 는 예약어라 `select * from user` 가 조용히 틀린다
