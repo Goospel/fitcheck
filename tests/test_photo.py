@@ -150,3 +150,23 @@ class Test재사용:
         결과, _ = normalize_photo(사진(768, 512, orientation=6))
         다시, _ = normalize_photo(결과)
         assert 크기(다시) == (512, 768)
+
+
+class TestEXIF_는_통째로_떨어진다:
+    """다시 굽는 김에 메타데이터가 사라진다. **덤이 아니라 지켜야 할 성질이다** —
+    폰 사진의 EXIF 에는 촬영 위치(GPS)가 들어 있고, 전신 사진과 함께 저장되면
+    그게 곧 「이 사람이 어디 사는지」다."""
+
+    def test_회전_태그가_남지_않는다(self):
+        결과, _ = normalize_photo(사진(768, 512, orientation=6))
+        assert not Image.open(BytesIO(결과)).getexif()
+
+    def test_GPS_가_지워진다(self):
+        img = Image.new("RGB", (512, 768), (10, 20, 30))
+        exif = img.getexif()
+        exif[0x8825] = {1: "N", 2: (37.0, 33.0, 0.0)}    # GPSInfo — 서울 어딘가
+        buf = BytesIO()
+        img.save(buf, "JPEG", exif=exif)
+
+        결과, _ = normalize_photo(buf.getvalue())
+        assert 0x8825 not in Image.open(BytesIO(결과)).getexif()

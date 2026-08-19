@@ -287,7 +287,9 @@ PUT  /profile          → 200 아래 모양 (전체 교체)
     "arm":      { "value": null, "source": "추정" }
   },
   "preferredGrade": "레귤러핏",
-  "accuracy": 2
+  "accuracy": 2,
+  "photoPath": "8f1c…/profile.jpg",
+  "photoUrl": "https://…supabase.co/storage/v1/object/sign/photos/…?token=…"
 }
 ```
 
@@ -299,8 +301,12 @@ PUT  /profile          → 200 아래 모양 (전체 교체)
 | `measurements.*.source` | `실측`(직접 입력) \| `추정`(A4가 채운다) |
 | `preferredGrade` | 등급 5종 중 하나. 미설정이면 `null` |
 | `accuracy` | `0~5`. 실측 4개 + 선호 핏 1개 |
+| `photoPath` | 전신 사진 저장 경로. 아직 안 올렸으면 `null` |
+| `photoUrl` | 그 사진의 **서명 URL**. 경로가 없으면 `null` |
 
 **`PUT` 은 전체 교체다.** 안 보낸 치수는 지워지고 다시 「추정」으로 돌아간다 — 화면 2단계를 한 요청으로 합쳤기 때문이다.
+
+⚠️ **전신 사진은 `PUT /profile` 로 안 바뀐다.** 치수를 고칠 때마다 사진이 날아가면 안 되므로 업로드 엔드포인트가 따로 갈아 끼운다 (아래 「사진 업로드 API」).
 
 ⚠️ **지금은 `value` 가 `null` 인 「추정」이 나온다.** A4 추정기가 아직 없어서다 ([Q3](open-questions.md)). 자리는 이미 계약에 있으니 A4가 붙으면 값만 채워진다 — 프론트는 지금부터 `source` 로 배지를 나눠 두면 된다.
 
@@ -319,7 +325,8 @@ GET  /garments   → 내 의류 목록 (최신순)
   "kind": "티셔츠", "sizeName": "M",
   "shoulder": 48.0, "chestWidth": 55.0, "length": 70.0,
   "sleeve": 60.0, "waistWidth": 52.0, "stretch": "약간",
-  "photoPath": null
+  "photoPath": null,
+  "photoUrl": null
 }
 ```
 
@@ -333,8 +340,51 @@ GET  /garments   → 내 의류 목록 (최신순)
 
 **한 행이 한 사이즈다.** 같은 옷의 M·L 은 **두 번 등록**하고, 사이즈 비교는 그 두 `id` 를 넘긴다.
 
-⚠️ `photoPath` 는 지금 항상 `null` 이다. 업로드(D1)가 아직 없어 **받아만 둔다.**
+⚠️ **`photoPath` 를 요청에 실어 보내도 무시된다.** 사진은 등록이 아니라 업로드 엔드포인트가 붙인다 (아래) — 경로를 요청으로 받으면 남의 사진을 가리키는 행을 만들 수 있다. 등록 직후에는 `photoPath`·`photoUrl` 이 둘 다 `null` 이고, 업로드하면 채워진다.
 
+---
+
+## 부록 · 사진 업로드 API (KimZion — BE-3 인수분)
+
+```
+PUT /photos/profile               multipart  file=<사진>   → 200
+PUT /photos/garments/{garmentId}  multipart  file=<사진>   → 200
+```
+
+```json
+{
+  "photoPath": "8f1c…/profile.jpg",
+  "photoUrl":  "https://….supabase.co/storage/v1/object/sign/photos/…?token=…"
+}
+```
+
+둘은 **하는 일이 완전히 같다.** 받아서 검증하고 저장한 뒤 경로를 행에 적는다 — 다른 것은 어느 행에 적느냐뿐이다.
+
+### 알고 써야 하는 것 다섯
+
+**① 저장 경로를 프론트가 정하지 않는다.** 요청에 경로를 실을 자리가 아예 없다. 서버가 사용자 id 로 시작하는 키를 만든다 — 경로를 받으면 남의 전신 사진을 가리키는 행을 만들 수 있고, 조회할 때 서명 URL 이 그대로 발급된다.
+
+**② 버킷이 비공개라 `photoUrl` 없이는 아무도 못 본다.** 토큰이 붙지 않은 주소는 400 이다. 유효기간은 **1시간**이고, 조회할 때마다 새로 서명해서 나간다 — 받은 URL 을 DB 나 로컬에 오래 저장하지 말고 그때그때 응답에서 읽는다.
+
+**③ 다시 올리면 갈아 끼운다.** 같은 자리를 덮어쓰므로 사진이 쌓이지 않는다. 형식이 바뀌어 경로가 달라지면(`.jpg` → `.png`) 옛 파일은 서버가 지운다.
+
+**④ 검증은 D2 와 같은 함수다.** 512 × 768 미만은 거부하고, 폰이 눕혀 저장한 세로 사진은 **세워서** 저장한다. 그 김에 EXIF 가 통째로 떨어지므로 **촬영 위치(GPS)가 서버에 남지 않는다.**
+
+**⑤ 계정을 지우면 사진도 같이 지워진다.** `DELETE /auth/me` 가 그 사람의 저장소 폴더를 통째로 비운다.
+
+### 에러 코드
+
+| 코드 | HTTP | 언제 |
+|---|---|---|
+| `PHOTO_TOO_SMALL` | 400 | 512 × 768 미만 (**회전을 반영한 뒤** 잰 크기다) |
+| `PHOTO_FORMAT` | 400 | JPG · PNG · WEBP 가 아니다 |
+| `PHOTO_UNREADABLE` | 400 | 이미지로 열리지 않거나 지나치게 크다 |
+| `PHOTO_TOO_LARGE` | 413 | 10MB 초과. **다 받기 전에 끊는다** |
+| `PROFILE_NOT_FOUND` | 404 | 프로필을 먼저 만들어야 붙일 자리가 있다 |
+| `GARMENT_NOT_FOUND` | 404 | 없는 의류거나 **남의 의류** |
+| `STORAGE_NOT_CONFIGURED` | 503 | 서버에 Storage 설정이 없다 (로컬에서만 난다) |
+
+⚠️ **히스토리(`GET /fittings`)의 `garment.photoPath` 에는 아직 `photoUrl` 이 안 붙는다.** 결과 이미지(`imagePath`)와 같이 붙이는 편이 나아 D4 로 미뤘다 — 그때까지 썸네일이 필요하면 `GET /garments` 를 한 번 받아 id 로 맞춘다.
 ---
 
 ## 부록 · 핏 분석 · 사이즈 비교 API (KimZion)

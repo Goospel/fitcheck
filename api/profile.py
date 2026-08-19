@@ -21,6 +21,7 @@ from core.schema import Schema
 from db.models import Profile, User
 from db.session import get_session
 from fit.grade import PREFERRED_GRADES
+from images import storage
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -59,9 +60,12 @@ class ProfileResponse(Schema):
     measurements: dict[str, Measurement]
     preferred_grade: str | None
     accuracy: int          # 0 ~ 5
+    # 전신 사진 (D1). **PUT 으로는 안 바뀐다** — 업로드 엔드포인트가 붙인다
+    photo_path: str | None
+    photo_url: str | None      # 비공개 버킷이라 조회 때마다 새로 서명한다
 
 
-def _to_response(p: Profile) -> ProfileResponse:
+async def _to_response(p: Profile) -> ProfileResponse:
     치수 = {
         이름: Measurement(
             value=getattr(p, 이름),
@@ -77,6 +81,8 @@ def _to_response(p: Profile) -> ProfileResponse:
         preferred_grade=p.preferred_grade,
         accuracy=sum(1 for m in 치수.values() if m.source == "실측")
         + (1 if p.preferred_grade else 0),
+        photo_path=p.photo_path,
+        photo_url=(await storage.signed_urls([p.photo_path])).get(p.photo_path),
     )
 
 
@@ -87,7 +93,7 @@ async def read(
     profile = await db.get(Profile, user.id)
     if profile is None:
         raise AppError("PROFILE_NOT_FOUND", "프로필을 먼저 입력해 주세요", 404)
-    return _to_response(profile)
+    return await _to_response(profile)
 
 
 @router.put("")
@@ -96,7 +102,11 @@ async def upsert(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
 ) -> ProfileResponse:
-    """전체 교체다. 안 보낸 치수는 지워지고 다시 「추정」으로 돌아간다."""
+    """전체 교체다. 안 보낸 치수는 지워지고 다시 「추정」으로 돌아간다.
+
+    ⚠️ **사진은 이 요청에 실리지 않는다.** 치수를 고칠 때마다 전신 사진이 사라지면
+       안 되고, 사진은 `PUT /photos/profile` 이 따로 갈아 끼운다.
+    """
     profile = await db.get(Profile, user.id)
     if profile is None:
         profile = Profile(user_id=user.id)
@@ -110,4 +120,4 @@ async def upsert(
         setattr(profile, 이름, getattr(body, 이름))
 
     await db.commit()
-    return _to_response(profile)
+    return await _to_response(profile)

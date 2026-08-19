@@ -60,6 +60,9 @@ def normalize_photo(raw: bytes) -> tuple[bytes, str]:
             400,
         )
 
+    # 다시 굽는 김에 EXIF 가 통째로 떨어진다. **덤이 아니라 지켜야 할 성질이다** —
+    # 폰 사진에는 촬영 위치(GPS)가 들어 있고, 전신 사진과 같이 저장되면 그게 곧
+    # 「이 사람이 어디 사는지」다. `exif=` 를 넘기지 않는 것이 그 처리다 (tests/test_photo.py)
     out = BytesIO()
     image.save(out, fmt, quality=_QUALITY)
     return out.getvalue(), fmt
