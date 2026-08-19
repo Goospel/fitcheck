@@ -75,8 +75,8 @@ class Test추천은_선호_핏에_가장_가까운_사이즈:
         assert compare_sizes(기본_몸(preferred_grade="세미오버핏"), {"M": M, "L": L}).recommended_size == "L"
 
     def test_선호가_둘_다에서_멀어도_더_가까운_쪽을_고른다(self):
-        # 선호 타이트핏(0) — M 레귤러(2)=2 · L 세미오버(3)=3 → M
-        assert compare_sizes(기본_몸(preferred_grade="타이트핏"), {"M": M, "L": L}).recommended_size == "M"
+        # 선호 너무 작음(0) — M 레귤러(2)=2 · L 세미오버(3)=3 → M
+        assert compare_sizes(기본_몸(preferred_grade="너무 작음"), {"M": M, "L": L}).recommended_size == "M"
 
 
 class Test동점이면_더_헐렁한_쪽:

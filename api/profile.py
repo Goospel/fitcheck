@@ -20,7 +20,7 @@ from core.errors import AppError
 from core.schema import Schema
 from db.models import Profile, User
 from db.session import get_session
-from fit.grade import GRADE_ORDER
+from fit.grade import PREFERRED_GRADES
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -47,8 +47,9 @@ class ProfileRequest(Schema):
     chest: Cm
     waist: Cm
     arm: Cm
-    # 등급 문구를 새로 타이핑하지 않는다 — fit.grade 가 유일한 출처다
-    preferred_grade: Literal[GRADE_ORDER] | None = None
+    # 등급 문구를 새로 타이핑하지 않는다 — fit.grade 가 유일한 출처다.
+    # 5종이 아니라 4종이다 — 「너무 작음」을 선호할 사람은 없다 (PRD 7.2)
+    preferred_grade: Literal[PREFERRED_GRADES] | None = None
 
 
 class ProfileResponse(Schema):

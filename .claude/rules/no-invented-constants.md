@@ -26,7 +26,9 @@ paths:
 핏 등급 문구 5종은 `fit/grade.py` 에 있다. **문자열을 새로 타이핑하지 않는다.**
 
 ```python
-from fit.grade import THRESHOLDS, TIGHTEST   # ("오버핏", "세미오버핏", ...)
+from fit.grade import GRADE_ORDER, PREFERRED_GRADES
+# GRADE_ORDER    = ("너무 작음","슬림핏","레귤러핏","세미오버핏","오버핏")
+# PREFERRED_GRADES = 선호 핏으로 고를 수 있는 4개 (「너무 작음」 제외)
 ```
 
 D3(프롬프트 변환)·A5(리포트 조립)·프론트 응답이 전부 같은 문자열을 봐야 한다. 한 곳에서 오타가 나면 조용히 갈라진다.

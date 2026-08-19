@@ -119,7 +119,8 @@ async def 핸들러(db: AsyncSession = Depends(get_session)):
 **③ 등급 문자열을 새로 타이핑하지 않는다.**
 
 ```python
-from fit.grade import GRADE_ORDER   # ("타이트핏","슬림핏","레귤러핏","세미오버핏","오버핏")
+from fit.grade import GRADE_ORDER        # ("너무 작음","슬림핏","레귤러핏","세미오버핏","오버핏")
+from fit.grade import PREFERRED_GRADES   # 선호 핏 선택지 4개 — 「너무 작음」 제외
 ```
 
 D3·F-10·A5가 전부 같은 출처를 봐야 한다. 한 곳에서 오타가 나면 조용히 갈라진다.

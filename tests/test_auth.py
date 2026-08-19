@@ -208,3 +208,19 @@ class Test에러_규격을_지킨다:
         r = await client.post("/auth/login", json={"email": "a@b.com", "password": "hunter22"})
         assert set(r.json()) == {"error"}
         assert set(r.json()["error"]) == {"code", "message"}
+
+
+class TestPRD_비밀번호_규칙:
+    """PRD 7.8 — 8자 이상, 영문·숫자·기호 중 2종 이상 조합"""
+
+    @pytest.mark.parametrize("비번", ["hunter22", "hunter!!", "1234567!", "패스워드입니다1"])
+    async def test_2종_이상_섞이면_통과한다(self, client, 비번):
+        r = await client.post("/auth/signup",
+                              json={"email": "z@b.com", "password": 비번, "isOver14": True})
+        assert r.status_code == 201
+
+    @pytest.mark.parametrize("비번", ["abcdefgh", "12345678", "!!!!!!!!", "비밀번호비밀번호"])
+    async def test_1종뿐이면_거부한다(self, client, 비번):
+        r = await client.post("/auth/signup",
+                              json={"email": "z@b.com", "password": 비번, "isOver14": True})
+        assert r.status_code == 422
