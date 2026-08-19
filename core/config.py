@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_service_key: str = ""
 
-    jwt_secret: str = "dev-only-do-not-use-in-prod"
+    # ⚠️ 32바이트 이상. 미만이면 PyJWT 가 경고하고 서명이 약해진다
+    jwt_secret: str = "dev-only-not-for-production-change-this-value"
     jwt_expire_hours: int = 168
 
     replicate_api_token: str = ""
