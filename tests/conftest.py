@@ -7,6 +7,7 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -23,6 +24,12 @@ async def db_engine():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
+    # ⚠️ SQLite 는 외래키를 **기본적으로 안 지킨다.** 켜지 않으면 ON DELETE CASCADE 가
+    # 조용히 아무 일도 안 해서 「계정을 지우면 딸린 것도 지워진다」는 확인이 거짓이 된다
+    @event.listens_for(engine.sync_engine, "connect")
+    def _foreign_keys_on(dbapi_conn, _):
+        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine
