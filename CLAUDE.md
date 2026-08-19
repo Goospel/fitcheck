@@ -121,6 +121,8 @@
 | BE-2 | `db/` · `auth/` · `api/profile` · `core/` |
 | BE-3 | `images/` · `jobs/` · `api/history` · `api/results` |
 
+⚠️ **BE-2 슬롯은 2026-08-19부터 BE-1(KimZion)이 겸한다** — 원 담당이 하루 동안 착수하지 않아 스키마가 나머지 둘을 막고 있었다. `db/models.py` 와 `db/session.py` 는 이미 `main` 에 있으니 **다시 만들지 말고** 팀에 말한 뒤 이어받는다. 상세는 [plan.md 1절](plan.md).
+
 **남의 디렉터리에 수정이 필요하면 직접 고치지 말고 담당자에게 말한다.**
 
 커밋 전에 반드시 확인한다:
