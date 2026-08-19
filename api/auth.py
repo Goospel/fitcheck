@@ -100,3 +100,19 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_session)) -> 
 @router.get("/me")
 async def me(user: User = Depends(current_user)) -> MeResponse:
     return MeResponse(user_id=user.id, email=user.email)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(
+    user: User = Depends(current_user), db: AsyncSession = Depends(get_session)
+) -> None:
+    """계정 삭제. 프로필·의류·피팅 결과가 외래키 CASCADE 로 같이 사라진다.
+
+    ⚠️ **저장소의 사진은 아직 안 지운다** — 업로드(D1)가 없어 올라간 파일이 없다.
+    D1 이 생기면 여기서 삭제 함수를 호출해야 한다.
+
+    로그아웃 엔드포인트는 두지 않는다. JWT 는 서버에 상태가 없어 할 일이 없고,
+    프론트가 토큰을 버리면 그게 로그아웃이다.
+    """
+    await db.delete(user)
+    await db.commit()
