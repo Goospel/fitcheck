@@ -105,7 +105,7 @@
 | DB 접근 | SQLAlchemy 2.0 **async** 세션. 동기 세션·raw psycopg를 섞지 않는다 |
 | 스키마 | `db/models.py` 가 유일한 출처. **BE-2만 고친다.** 마이그레이션 도구는 안 쓴다 |
 | 잡 큐 | `image_job` 테이블 + `FOR UPDATE SKIP LOCKED`. **Redis·Celery·RQ 추가 금지** |
-| 이미지 모델 호출 | `images/` 안 **한 곳에서만.** 다른 데서 Replicate를 직접 부르지 않는다 |
+| 이미지 모델 호출 | `images/` 안 **한 곳에서만.** 다른 데서 이미지 생성 API를 직접 부르지 않는다 |
 | 라우터 등록 | `main.py` 의 주석 블록에 **자기 줄만** 추가한다 |
 
 ⚠️ **DB는 팀 공용 1개다. 내 로컬 DB가 아니다.** `drop_all()` · `TRUNCATE` · 테스트에서 실 DB에 쓰기 — 셋 다 남의 작업을 지운다. 테스트는 순수 함수만 대상으로 한다.

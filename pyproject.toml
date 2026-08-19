@@ -14,7 +14,6 @@ dependencies = [
     "bcrypt>=4.2",
     "pyjwt>=2.10",
     "supabase>=2.10",        # Storage 서명 URL 용도
-    "replicate>=1.0",
     "python-multipart>=0.0.17",
     "pillow>=12.3.0",
 ]
