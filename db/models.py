@@ -21,7 +21,7 @@
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     JSON,
@@ -47,7 +47,13 @@ def _pk() -> Mapped[uuid.UUID]:
 
 
 def _created_at() -> Mapped[datetime]:
-    return mapped_column(DateTime(timezone=True), server_default=func.now())
+    """파이썬 기본값을 같이 둔다 — SQLite 의 `now()` 는 **초 단위**라 같은 초에 만든
+    행들이 순서를 잃는다. server_default 는 ORM 을 안 거친 INSERT 용으로 남겨 둔다."""
+    return mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+    )
 
 
 class User(Base):

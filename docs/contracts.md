@@ -262,3 +262,34 @@ PUT  /profile          → 200 아래 모양 (전체 교체)
 **`PUT` 은 전체 교체다.** 안 보낸 치수는 지워지고 다시 「추정」으로 돌아간다 — 화면 2단계를 한 요청으로 합쳤기 때문이다.
 
 ⚠️ **지금은 `value` 가 `null` 인 「추정」이 나온다.** A4 추정기가 아직 없어서다 ([Q3](open-questions.md)). 자리는 이미 계약에 있으니 A4가 붙으면 값만 채워진다 — 프론트는 지금부터 `source` 로 배지를 나눠 두면 된다.
+
+---
+
+## 부록 · 의류 API (KimZion)
+
+```
+POST /garments   → 201 아래 모양
+GET  /garments   → 내 의류 목록 (최신순)
+```
+
+```json
+{
+  "id": "uuid",
+  "kind": "티셔츠", "sizeName": "M",
+  "shoulder": 48.0, "chestWidth": 55.0, "length": 70.0,
+  "sleeve": 60.0, "waistWidth": 52.0, "stretch": "약간",
+  "photoPath": null
+}
+```
+
+| | |
+|---|---|
+| 필수 | `kind` · `sizeName` · `shoulder` · `chestWidth` · `length` |
+| 선택 | `sleeve` · `waistWidth` · `stretch` — 없으면 `null` |
+| `kind` | `티셔츠` · `셔츠` · `니트` · `후디` · `맨투맨` **5종만** |
+| `stretch` | `좋음` · `약간` · `없음`. **목록 밖 값은 422** — 「보통」이 통과하면 보정이 조용히 0 이 된다 |
+| `sizeName` | 자유 문자열. `"M"` 도 `"95"` 도 `"FREE"` 도 온다 |
+
+**한 행이 한 사이즈다.** 같은 옷의 M·L 은 **두 번 등록**하고, 사이즈 비교는 그 두 `id` 를 넘긴다.
+
+⚠️ `photoPath` 는 지금 항상 `null` 이다. 업로드(D1)가 아직 없어 **받아만 둔다.**

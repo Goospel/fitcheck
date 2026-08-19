@@ -17,10 +17,11 @@ app.add_middleware(
 register_error_handlers(app)
 
 # 라우터 등록 — 자기 줄만 추가하고 남의 줄은 건드리지 않는다 (CLAUDE.md 3절)
-# from api import garments, fittings          # BE-1
+from api import garments                      # BE-1
 from api import auth, profile                 # BE-2
 # from api import history, results            # BE-3
 
+app.include_router(garments.router)
 app.include_router(auth.router)
 app.include_router(profile.router)
 
