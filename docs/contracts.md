@@ -226,3 +226,39 @@ POST /auth/login   { "email": ..., "password": ... }                     → 200
 **② 비밀번호 상한이 문자 수가 아니라 바이트다.** bcrypt 한계라 한글 24자에서 걸린다 ([T7](open-questions.md)).
 
 **③ 토큰 유효기간은 7일** (`JWT_EXPIRE_HOURS=168`). 만료·위조·손상 토큰은 전부 401 하나로 떨어진다.
+
+---
+
+## 부록 · 프로필 API (KimZion — BE-2 인수분)
+
+```
+GET  /profile          → 200 아래 모양 · 아직 없으면 404 PROFILE_NOT_FOUND
+PUT  /profile          → 200 아래 모양 (전체 교체)
+```
+
+```json
+{
+  "height": 175, "weight": 70, "gender": "남성",
+  "measurements": {
+    "shoulder": { "value": 44.0, "source": "실측" },
+    "chest":    { "value": null, "source": "추정" },
+    "waist":    { "value": null, "source": "추정" },
+    "arm":      { "value": null, "source": "추정" }
+  },
+  "preferredGrade": "레귤러핏",
+  "accuracy": 2
+}
+```
+
+| 키 | 뜻 |
+|---|---|
+| `height` · `weight` | 정수. 100~220 · 30~200 밖이면 422 |
+| `gender` | `남성` · `여성` · `밝히지 않음` 3지선다. **안 밝혀도 기능 제약은 없다** |
+| `measurements` | 항상 네 개(`shoulder`·`chest`·`waist`·`arm`) 다 나온다 |
+| `measurements.*.source` | `실측`(직접 입력) \| `추정`(A4가 채운다) |
+| `preferredGrade` | 등급 5종 중 하나. 미설정이면 `null` |
+| `accuracy` | `0~5`. 실측 4개 + 선호 핏 1개 |
+
+**`PUT` 은 전체 교체다.** 안 보낸 치수는 지워지고 다시 「추정」으로 돌아간다 — 화면 2단계를 한 요청으로 합쳤기 때문이다.
+
+⚠️ **지금은 `value` 가 `null` 인 「추정」이 나온다.** A4 추정기가 아직 없어서다 ([Q3](open-questions.md)). 자리는 이미 계약에 있으니 A4가 붙으면 값만 채워진다 — 프론트는 지금부터 `source` 로 배지를 나눠 두면 된다.
