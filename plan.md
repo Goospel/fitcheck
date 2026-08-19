@@ -131,7 +131,9 @@ DB도 API도 프론트도 필요 없이 시작할 수 있는 유일한 덩어리
   - [x] ✅ 실 DB 스모크 22건 통과 — 가입 → 프로필 → 의류 → 핏 리포트 → 사이즈 비교 → 히스토리 → 탈퇴(CASCADE). **인메모리 SQLite 로만 돌던 코드가 진짜 Postgres 에서 그대로 돌았다**
   - ⚠️ **연결은 Session pooler 로만 된다.** Direct connection(`db.<ref>.supabase.co`)은 **IPv6 전용**이고(실측 — A 레코드가 없다), Transaction pooler(6543)는 asyncpg 의 prepared statement 를 못 받는다
   - ⚠️ **Data API(PostgREST)는 꺼 뒀다.** 켠 채로 두면 anon 키만으로 전 테이블이 공개 REST 에 열린다 (PRD 8.2). 우리는 SQLAlchemy 로 직접 붙어서 필요가 없다. **Storage 는 영향 없다** — D1 은 그대로 쓴다
-  - [ ] Railway에 GitHub 연결 + 환경변수 등록 → `/health` 가 뜨는지 확인
+  - [x] ✅ Railway 배포 — `https://web-production-19ef6.up.railway.app` · `main` push 시 자동 재배포. 배포 주소로 스모크 22건 재통과
+  - ⚠️ **리전을 Singapore 로 옮겼다.** 기본값 EU West 로는 DB(서울) 왕복에 **쿼리당 1.3초**가 붙었다 (실측 `/auth/check` 1.70s → 0.60s). 앱과 DB 를 같은 대륙에 두지 않으면 시연에서 티가 난다
+  - ⚠️ Railway 는 변수 변경을 **스테이징만** 하고 별도 `Deploy` 를 눌러야 반영된다 — 변수를 넣었는데 503 이면 이걸 의심한다
   - ⚠️ **에러 규격·CORS·환경변수 로딩·camelCase 베이스는 `core/` 에 이미 있다.** 다시 만들지 말고 인계받아 쓴다
 - [x] ✅ **B1 · DB 스키마** — `db/models.py`. 5테이블 = 계약 1. **B3 · D4 가 여기서 풀렸다**
   - 테이블명은 `user` 가 아니라 **`app_user`** — `user` 는 예약어라 `select * from user` 가 조용히 틀린다
