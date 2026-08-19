@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-only-not-for-production-change-this-value"
     jwt_expire_hours: int = 168
 
+    # ── 이미지 생성 ──
+    # OpenAI 로 간다. 멋사 팀 조직에 크레딧이 있어 카드 없이 쓸 수 있고,
+    # Replicate 는 품질이 안 나올 때를 위한 **예비 경로**로 남겨 둔다 (D0 판단)
+    openai_api_key: str = ""
+    # D0 에서 모델을 갈아 끼우며 비교한다. 코드가 아니라 환경변수로 바꾼다
+    image_model: str = "gpt-image-2"
     replicate_api_token: str = ""
 
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
