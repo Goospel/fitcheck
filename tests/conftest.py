@@ -41,3 +41,16 @@ async def client(db_engine):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _fast_bcrypt(monkeypatch):
+    """테스트에서만 bcrypt 비용을 낮춘다.
+
+    기본 라운드(12)는 **일부러 느리게** 설계된 값이라 그대로 두면 전체 스위트가
+    분 단위로 늘어난다. 운영 코드는 건드리지 않고 여기서만 4로 내린다.
+    """
+    import bcrypt
+
+    원본 = bcrypt.gensalt
+    monkeypatch.setattr(bcrypt, "gensalt", lambda rounds=4, prefix=b"2b": 원본(4, prefix))
