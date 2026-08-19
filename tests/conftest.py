@@ -77,6 +77,11 @@ def 저장소(monkeypatch):
     async def upload(key, data, fmt):
         파일[key] = data
 
+    async def download(key):
+        if key not in 파일:
+            raise RuntimeError(f"없는 파일: {key}")
+        return 파일[key]
+
     async def signed_urls(keys):
         # 없는 키는 빠진다 — 진짜 Storage 도 그 항목에 error 를 실어 준다
         return {k: f"https://signed.test/{k}?token=fake" for k in dict.fromkeys(keys) if k in 파일}
@@ -89,7 +94,7 @@ def 저장소(monkeypatch):
         for k in [k for k in 파일 if k.startswith(f"{user_id}/")]:
             del 파일[k]
 
-    for 이름, 가짜 in (("upload", upload), ("signed_urls", signed_urls),
+    for 이름, 가짜 in (("upload", upload), ("signed_urls", signed_urls), ("download", download),
                      ("remove", remove), ("remove_user_photos", remove_user_photos)):
         monkeypatch.setattr(storage, 이름, 가짜)
     return 파일
