@@ -284,9 +284,9 @@ PUT  /profile          → 200 아래 모양 (전체 교체)
   "height": 175, "weight": 70, "gender": "남성",
   "measurements": {
     "shoulder": { "value": 44.0, "source": "실측" },
-    "chest":    { "value": null, "source": "추정" },
-    "waist":    { "value": null, "source": "추정" },
-    "arm":      { "value": null, "source": "추정" }
+    "chest":    { "value": 99.2, "source": "추정" },
+    "waist":    { "value": 80.5, "source": "추정" },
+    "arm":      { "value": 59.1, "source": "추정" }
   },
   "preferredGrade": "레귤러핏",
   "accuracy": 2,
@@ -310,7 +310,9 @@ PUT  /profile          → 200 아래 모양 (전체 교체)
 
 ⚠️ **전신 사진은 `PUT /profile` 로 안 바뀐다.** 치수를 고칠 때마다 사진이 날아가면 안 되므로 업로드 엔드포인트가 따로 갈아 끼운다 (아래 「사진 업로드 API」).
 
-⚠️ **지금은 `value` 가 `null` 인 「추정」이 나온다.** A4 추정기가 아직 없어서다 ([Q3](open-questions.md)). 자리는 이미 계약에 있으니 A4가 붙으면 값만 채워진다 — 프론트는 지금부터 `source` 로 배지를 나눠 두면 된다.
+⚠️ **`value` 는 이제 항상 채워져 있다 (2026-08-20).** 안 넣은 치수는 A4가 키·몸무게·성별로 추정해 넣는다 ([Q3](open-questions.md) 종결). **`null` 인지로 분기하지 말고 `source` 로 배지를 나눈다** — 값만 보면 실측과 추정이 구분되지 않는다.
+
+추정 근거는 **제8차 한국인 인체치수조사(Size Korea) 20~24세 평균**이다. 정확도 `n/5` 는 그대로 **실측 개수**만 센다 — 추정으로 채웠다고 점수가 오르지 않는다.
 
 ---
 
@@ -488,12 +490,11 @@ GET /fittings?status=완료   → 거른 목록 (계약 3 의 5개 중 하나. �
 | 코드 | HTTP | 언제 |
 |---|---|---|
 | `PROFILE_NOT_FOUND` | 404 | 프로필을 아직 안 만들었다 |
-| `MEASUREMENTS_REQUIRED` | 400 | **가슴·어깨 실측이 없다** — A4 추정기가 붙기 전까지 |
 | `GARMENT_NOT_FOUND` | 404 | 없는 의류거나 **남의 의류** |
 | `FITTING_NOT_FOUND` | 404 | 없는 결과거나 남의 결과 |
 | `DUPLICATE_SIZE_NAME` | 400 | 비교 목록에 같은 사이즈명이 둘 |
 
-⚠️ **`MEASUREMENTS_REQUIRED` 는 지금 실제로 자주 난다.** A4가 없어 프로필 1단계(키·몸무게·성별)만 채운 사용자는 리포트를 받을 수 없다. 지어낸 추정값으로 리포트를 내는 것보다 낫다고 판단했다 ([Q3](open-questions.md)).
+⚠️ **`MEASUREMENTS_REQUIRED` 는 없어졌다 (2026-08-20).** A4 추정기가 붙어 프로필 1단계(키·몸무게·성별)만 채운 사용자도 리포트를 받는다. 프론트에 이 코드를 처리하는 분기가 있으면 지워도 된다 — 서버는 더 이상 내보내지 않는다.
 
 ---
 

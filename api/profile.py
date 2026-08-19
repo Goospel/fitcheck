@@ -20,6 +20,7 @@ from core.errors import AppError
 from core.schema import Schema
 from db.models import Profile, User
 from db.session import get_session
+from fit.estimate import estimate_body
 from fit.grade import PREFERRED_GRADES
 from images import storage
 
@@ -65,10 +66,25 @@ class ProfileResponse(Schema):
     photo_url: str | None      # 비공개 버킷이라 조회 때마다 새로 서명한다
 
 
+def resolved_measurements(p: Profile) -> dict[str, float]:
+    """계산에 쓸 치수 4종 — **실측이 있으면 실측이 이기고, 빈칸만 A4 가 채운다.**
+
+    ⚠️ 출처(실측/추정)는 여기서 안 돌려준다. 값과 출처를 같이 들고 다니는 것은
+       `Measurement`(응답)와 `Body.measured`(계산)의 일이고, 둘의 판정 기준은
+       **「직접 넣었는가」 하나**다 — 이 함수가 그걸 흐리면 배지가 거짓말을 한다.
+    """
+    추정 = estimate_body(p.height, p.weight, p.gender)
+    return {
+        이름: getattr(p, 이름) if getattr(p, 이름) is not None else getattr(추정, 이름)
+        for 이름 in MEASUREMENTS
+    }
+
+
 async def _to_response(p: Profile) -> ProfileResponse:
+    값 = resolved_measurements(p)
     치수 = {
         이름: Measurement(
-            value=getattr(p, 이름),
+            value=값[이름],
             source="실측" if getattr(p, 이름) is not None else "추정",
         )
         for 이름 in MEASUREMENTS

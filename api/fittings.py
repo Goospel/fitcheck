@@ -3,9 +3,8 @@
 계산은 전부 `fit/` 에 있다. 여기는 **DB 에서 꺼내 넘기고 결과를 돌려주는 층**이고,
 판정 로직을 여기에 새로 쓰지 않는다.
 
-⚠️ **A4(치수 추정기)가 아직 없다.** 가슴·어깨를 직접 입력하지 않은 프로필은
-   리포트를 낼 수 없다 — 지어낸 값으로 채우는 대신 명시적으로 거절한다
-   (docs/open-questions.md Q3).
+⚠️ **실측을 안 넣은 프로필도 리포트를 받는다** — 빈 치수는 A4(`fit/estimate.py`)가
+   사이즈코리아 앵커로 채운다. 어디까지가 추정인지는 응답의 `confidence` 가 말한다.
 """
 
 import uuid
@@ -18,7 +17,7 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.profile import MEASUREMENTS
+from api.profile import MEASUREMENTS, resolved_measurements
 from auth.security import current_user
 from core.errors import AppError
 from core.schema import Schema
@@ -75,20 +74,23 @@ class CompareRequest(Schema):
 
 
 async def _body_of(user: User, db: AsyncSession) -> Body:
-    """프로필을 계산용 `Body` 로. 없거나 부족하면 여기서 끊는다."""
+    """프로필을 계산용 `Body` 로. 프로필 자체가 없을 때만 끊는다.
+
+    ⚠️ **빈 치수는 A4 가 채운다** — 키·몸무게·성별만 넣은 사용자도 리포트를 받는다
+       (PRD 7.2). 실측이 있으면 그 값이 이기고, 어디까지가 추정인지는 `measured` 가
+       들고 가서 응답의 `confidence` 배지가 된다.
+    """
     profile = await db.get(Profile, user.id)
     if profile is None:
         raise AppError("PROFILE_NOT_FOUND", "프로필을 먼저 입력해 주세요", 404)
-    if profile.chest is None or profile.shoulder is None:
-        # A4 가 붙으면 이 자리에서 추정값을 채운다. 그때까지는 거절이 정직하다
-        raise AppError(
-            "MEASUREMENTS_REQUIRED", "가슴둘레와 어깨너비를 프로필에 입력해 주세요", 400
-        )
+    값 = resolved_measurements(profile)
     return Body(
-        chest=profile.chest,
-        shoulder=profile.shoulder,
-        waist=profile.waist,
-        arm=profile.arm,
+        chest=값["chest"],
+        shoulder=값["shoulder"],
+        waist=값["waist"],
+        arm=값["arm"],
+        # ⚠️ **채워진 값이 아니라 「직접 넣은 값」만 센다.** 여기에 추정을 넣으면
+        #    추정 리포트가 「실측」 배지를 달고 나간다
         measured=frozenset(n for n in MEASUREMENTS if getattr(profile, n) is not None),
         preferred_grade=profile.preferred_grade,
     )

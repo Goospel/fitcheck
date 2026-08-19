@@ -84,8 +84,9 @@
 |---|---|
 | 기장 5단계 판정 기준 (경계 4개) — 문구는 확정, 기준이 없다 | [Q1](docs/open-questions.md) |
 | 소매 3단계 판정 기준 (경계 2개) | [Q2](docs/open-questions.md) |
-| A4 신체 치수 추정 계수 | [Q3](docs/open-questions.md) |
-| 어깨·허리·소매도 등급 문구를 갖는지 | [Q4](docs/open-questions.md) |
+| 드롭숄더 경계 — 어깨 몇 cm부터인가 | [Q4](docs/open-questions.md) |
+
+✅ **A4 신체 치수 추정 계수는 확정됐다** (Q3 종결) — 사이즈코리아 8차 조사 앵커. `fit/estimate.py` 의 `ANCHORS` 가 유일한 출처고 **출처 없이 고치지 않는다.**
 
 이 중 하나가 필요해지면 **구현을 멈추고 [docs/open-questions.md](docs/open-questions.md)를 읽은 뒤 사용자에게 묻는다.** 임시값을 넣고 진행하지 않는다.
 
