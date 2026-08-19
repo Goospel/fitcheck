@@ -59,6 +59,21 @@ def photo_key(user_id: uuid.UUID, fmt: str, garment_id: uuid.UUID | None = None)
     return f"{user_id}/{이름}.{_EXT[fmt]}"
 
 
+def result_key(user_id: uuid.UUID, fitting_id: uuid.UUID) -> str:
+    """생성된 착용 이미지 (D4). **사진과 같은 폴더**에 둔다 — 계정을 지울 때
+    `remove_user_photos` 가 한 번에 걷어야 하고, 갈래를 나누면 결과 이미지만 남는다.
+
+    확장자가 고정인 이유 — 모델이 PNG 로 준다 (D0 실측).
+    """
+    return f"{user_id}/fitting-{fitting_id}.png"
+
+
+async def download(key: str) -> bytes:
+    """워커가 모델에 넘길 원본을 가져온다. 서명 URL 을 거치지 않는다 —
+    서버는 서비스 키를 들고 있어 자기 자신에게 URL 을 발급할 이유가 없다."""
+    return await _client().from_(BUCKET).download(key)
+
+
 async def upload(key: str, data: bytes, fmt: str) -> None:
     """같은 키면 덮어쓴다 — 사진을 다시 올리는 것이 새 파일을 만드는 일이 아니다.
 

@@ -28,6 +28,7 @@ from fit.compare import SizeComparison, compare_sizes
 from fit.report import Body, FitReport
 from fit.report import Garment as FitGarment
 from fit.report import build_report
+from images import storage
 
 router = APIRouter(prefix="/fittings", tags=["fittings"])
 
@@ -42,6 +43,7 @@ class GarmentBrief(Schema):
     kind: str
     size_name: str
     photo_path: str | None
+    photo_url: str | None = None       # 비공개 버킷이라 조회 때마다 새로 서명한다
 
 
 class FittingResponse(Schema):
@@ -52,7 +54,11 @@ class FittingResponse(Schema):
     garment: GarmentBrief
     report: FitReport            # 계약 2 그대로 중첩한다
     image_path: str | None       # 생성 전·실패 시 None
+    image_url: str | None = None # 서명 URL. 생성 전·실패 시 None
     created_at: datetime
+
+    # ⚠️ 잡의 `error` 는 **일부러 안 내보낸다.** 모델 응답에 키나 내부 경로가 섞여
+    #    나올 수 있고, 사용자에게 쓸모도 없다 — 보이는 것은 「실패」라는 상태뿐이다
 
 
 class HistoryResponse(Schema):
@@ -99,15 +105,28 @@ def _to_fit(g: Garment) -> FitGarment:
     )
 
 
-def _view(fitting: Fitting, garment: Garment, job_status: str | None) -> FittingResponse:
+def _view(
+    fitting: Fitting, garment: Garment, job_status: str | None, urls: dict[str, str] | None = None
+) -> FittingResponse:
+    urls = urls or {}
+    옷 = GarmentBrief.model_validate(garment)
+    옷.photo_url = urls.get(garment.photo_path or "")
     return FittingResponse(
         id=fitting.id,
         # 잡이 없다 = 사진 없이 만든 리포트다. 없음 자체가 상태다
         status=job_status or REPORT_ONLY,
-        garment=GarmentBrief.model_validate(garment),
+        garment=옷,
         report=FitReport.model_validate(fitting.report),
         image_path=fitting.image_path,
+        image_url=urls.get(fitting.image_path or ""),
         created_at=fitting.created_at,
+    )
+
+
+async def _urls(*쌍: tuple[Fitting, Garment]) -> dict[str, str]:
+    """목록 한 줄에 한 번씩 서명하면 그게 곧 지연이다 — 한 번에 물어본다."""
+    return await storage.signed_urls(
+        [k for f, g in 쌍 for k in (f.image_path, g.photo_path)]
     )
 
 
@@ -150,7 +169,7 @@ async def _reusable(
         if job_status == "실패":
             continue
         if fitting.report == 지문:
-            return _view(fitting, garment, job_status)
+            return _view(fitting, garment, job_status, await _urls((fitting, garment)))
     return None
 
 
@@ -177,7 +196,8 @@ async def history(
 
     # ponytail: 전부 읽어 파이썬에서 세고 거른다. 한 사람의 피팅이 수백 건을
     # 넘기면 개수는 GROUP BY 로, 거르기는 WHERE 로 내린다
-    보이는것 = [_view(f, g, s) for f, g, s in rows]
+    urls = await _urls(*[(f, g) for f, g, _ in rows])
+    보이는것 = [_view(f, g, s, urls) for f, g, s in rows]
     개수 = Counter(v.status for v in 보이는것)
 
     return HistoryResponse(
@@ -212,6 +232,10 @@ async def analyze(
 
     이미 같은 판정을 만들어 뒀으면 새로 만들지 않고 그것을 돌려준다 (D6).
     **만들었으면 201, 재사용이면 200** — 프론트가 「생성 중」 스피너를 띄울지 여기서 가른다.
+
+    전신 사진과 의류 사진이 **둘 다 있으면** 착용 이미지 잡을 큐에 넣는다 (D4).
+    생성은 2분쯤 걸리므로(D0 실측 115초) 여기서 기다리지 않는다 — 상태는
+    `GET /fittings/{id}` 로 확인한다.
     """
     garment = (await _owned([body.garment_id], user, db))[body.garment_id]
     report = build_report(await _body_of(user, db), _to_fit(garment))
@@ -228,8 +252,15 @@ async def analyze(
     )
     db.add(fitting)
     await db.commit()
-    # 잡을 만들지 않았으므로 「리포트만」이다. 이미지 파이프라인이 붙으면 여기서 큐에 넣는다
-    return _view(fitting, garment, None)
+
+    # ⚠️ **사진이 둘 다 있어야 큐에 넣는다.** 없으면 만들 그림이 없고, 없는 것을
+    #    「대기」로 두면 영원히 안 끝나는 잡이 목록에 남는다 (계약 3). 리포트는 그대로 나간다
+    profile = await db.get(Profile, user.id)
+    큐에 = bool(profile and profile.photo_path and garment.photo_path)
+    if 큐에:
+        db.add(ImageJob(fitting_id=fitting.id))
+        await db.commit()
+    return _view(fitting, garment, "대기" if 큐에 else None)
 
 
 @router.get("/{fitting_id}")
@@ -249,4 +280,5 @@ async def read(
     ).first()
     if row is None:
         raise AppError("FITTING_NOT_FOUND", "결과를 찾을 수 없습니다", 404)
-    return _view(*row)
+    fitting, garment, job_status = row
+    return _view(fitting, garment, job_status, await _urls((fitting, garment)))

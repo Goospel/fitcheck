@@ -22,9 +22,9 @@ https://web-production-19ef6.up.railway.app
 
 ⚠️ **CORS 는 지금 `localhost:3000` · `localhost:5173` 만 허용한다.** 프론트를 배포하면 그 도메인을 알려 달라 — `CORS_ORIGINS` 에 추가해야 브라우저가 요청을 막지 않는다. 네이티브 앱이면 CORS 가 적용되지 않으니 상관없다.
 
-⚠️ **이미지 생성은 아직 붙지 않았다.** 모든 피팅은 `status: "리포트만"` 으로 온다 (계약 3).
+✅ **이미지 생성이 붙었다.** 전신 사진과 의류 사진이 **둘 다** 있으면 `POST /fittings` 가 잡을 큐에 넣고 `status: "대기"` 로 답한다. 하나라도 없으면 `"리포트만"` 이고 기다릴 것이 없다.
 
-다만 모델은 확정됐고 실제로 한 장 만들어 봤다 — **한 장에 약 2분**이다 (OpenAI `gpt-image-2`, 실측 115초). PRD 상한은 10분이지만 화면은 **2분 기준**으로 잡으면 된다. 폴링 주기는 D4 에서 확정한다.
+**한 장에 약 2분**이다 (OpenAI `gpt-image-2`, 실측 115초). PRD 상한은 10분이지만 화면은 **2분 기준**으로 잡으면 된다.
 
 ---
 
@@ -388,7 +388,7 @@ PUT /photos/garments/{garmentId}  multipart  file=<사진>   → 200
 | `GARMENT_NOT_FOUND` | 404 | 없는 의류거나 **남의 의류** |
 | `STORAGE_NOT_CONFIGURED` | 503 | 서버에 Storage 설정이 없다 (로컬에서만 난다) |
 
-⚠️ **히스토리(`GET /fittings`)의 `garment.photoPath` 에는 아직 `photoUrl` 이 안 붙는다.** 결과 이미지(`imagePath`)와 같이 붙이는 편이 나아 D4 로 미뤘다 — 그때까지 썸네일이 필요하면 `GET /garments` 를 한 번 받아 id 로 맞춘다.
+✅ **히스토리·결과에도 `photoUrl` · `imageUrl` 이 붙는다** (D4 에서 같이 붙였다). 한 응답에 필요한 서명을 **한 번에** 받아 오므로 목록이 길어져도 왕복이 늘지 않는다.
 ---
 
 ## 부록 · 핏 분석 · 사이즈 비교 API (KimZion)
@@ -412,15 +412,40 @@ POST /fittings/compare    { "garmentIds": ["a","b"] }     → 200
 ```json
 {
   "id": "uuid",
-  "status": "리포트만",
-  "garment": { "id": "uuid", "kind": "티셔츠", "sizeName": "M", "photoPath": null },
+  "status": "대기",
+  "garment": { "id": "uuid", "kind": "티셔츠", "sizeName": "M",
+               "photoPath": "…/garment-….jpg", "photoUrl": "https://…?token=…" },
   "report": { "fitGrade": "레귤러핏", "gaugeLevel": 3, "...": "계약 2 그대로" },
   "imagePath": null,
+  "imageUrl": null,
   "createdAt": "2026-08-19T…"
 }
 ```
 
-`status` 는 계약 3. `imagePath` 는 생성 전·실패 시 `null` 이고, **그래도 `report` 는 항상 있다** (F-09 · PRD 7.5).
+`status` 는 계약 3. `imagePath`·`imageUrl` 은 생성 전·실패 시 `null` 이고, **그래도 `report` 는 항상 있다** (F-09 · PRD 7.5).
+
+### 착용 이미지 — 만드는 데 2분이다
+
+**사진이 둘 다 있어야 만든다.** 전신 사진(`PUT /photos/profile`)과 의류 사진(`PUT /photos/garments/{id}`) 중 하나라도 없으면 `"리포트만"` 으로 나가고 잡이 생기지 않는다 — 없는 것을 「대기」로 두면 영원히 안 끝나는 잡이 목록에 남는다.
+
+```
+POST /fittings  →  status "대기"        큐에 들어갔다
+                        ↓  (워커가 집어간다)
+                   status "생성중"       평균 2분
+                        ↓
+                   status "완료"         imagePath · imageUrl 이 채워진다
+                        ↘ status "실패"  imagePath 는 null · report 는 그대로
+```
+
+**같은 곳을 다시 조회해 확인한다** — `GET /fittings/{id}`. 별도 폴링 엔드포인트를 만들지 않았다. 생성이 2분짜리라 **5초 간격이면 충분하다.**
+
+| | |
+|---|---|
+| `imageUrl` | 서명 URL(1시간). **조회할 때마다 새로 서명해서 나간다** — 저장해 두지 말고 그때그때 응답에서 읽는다 |
+| 실패하면 | 다시 `POST /fittings` 를 부르면 **새로 만든다** (D6 은 실패한 것을 재사용하지 않는다) |
+| 재배포되면 | 돌던 잡은 **큐로 되돌아가 이어서 끝난다.** 두 번 실패한 것만 「실패」로 굳는다 |
+
+⚠️ **실패 사유는 응답에 없다.** 모델 응답에 키나 내부 경로가 섞여 나올 수 있어 밖으로 내보내지 않는다 — 프론트가 보는 것은 `"실패"` 라는 상태뿐이다.
 
 ### 히스토리 — `GET /fittings`
 
