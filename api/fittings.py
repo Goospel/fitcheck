@@ -13,7 +13,7 @@ from collections import Counter
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,6 +122,38 @@ async def _owned(ids: list[uuid.UUID], user: User, db: AsyncSession) -> dict[uui
     return found
 
 
+async def _reusable(
+    user: User, garment: Garment, report: FitReport, db: AsyncSession
+) -> FittingResponse | None:
+    """D6 · 이미 같은 걸 만들어 뒀으면 그걸 돌려준다. 없으면 None.
+
+    생성 1건이 **최대 10분 + 유료 API 호출**이다 (plan.md D6). 시연 중 같은 조합을
+    두 번 누르면 그대로 비용이고, 심사위원 앞에서 10분을 기다리는 사고가 난다.
+    돌고 있는 잡을 두 번 큐에 넣는 것도 여기서 막힌다.
+
+    ⚠️ **판정이 같을 때만 같은 것이다.** (사용자·의류) 만 보면 프로필이 바뀌어
+       판정이 달라졌는데 옛 결과를 돌려주게 되고, 사용자는 틀린 사이즈를 산다.
+       리포트가 곧 입력값의 지문이라 따로 해시를 두지 않는다.
+    """
+    rows = (
+        await db.execute(
+            select(Fitting, ImageJob.status)
+            .outerjoin(ImageJob, ImageJob.fitting_id == Fitting.id)
+            .where(Fitting.user_id == user.id, Fitting.garment_id == garment.id)
+        )
+    ).all()
+    # 정렬하지 않는다 — 판정이 같은 행끼리는 서로 구분할 이유가 없다
+
+    지문 = report.model_dump(by_alias=True)
+    for fitting, job_status in rows:
+        # ⚠️ 실패한 것을 돌려주면 사용자가 **영영 다시 시도할 수 없다**
+        if job_status == "실패":
+            continue
+        if fitting.report == 지문:
+            return _view(fitting, garment, job_status)
+    return None
+
+
 @router.get("")
 async def history(
     status: Literal[FITTING_STATUSES] | None = None,
@@ -172,12 +204,22 @@ async def compare(
 @router.post("", status_code=201)
 async def analyze(
     body: FittingRequest,
+    response: Response,
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
 ) -> FittingResponse:
-    """프로필 + 의류 → 리포트. 결과를 **그 시점 스냅샷으로** 저장한다."""
+    """프로필 + 의류 → 리포트. 결과를 **그 시점 스냅샷으로** 저장한다.
+
+    이미 같은 판정을 만들어 뒀으면 새로 만들지 않고 그것을 돌려준다 (D6).
+    **만들었으면 201, 재사용이면 200** — 프론트가 「생성 중」 스피너를 띄울지 여기서 가른다.
+    """
     garment = (await _owned([body.garment_id], user, db))[body.garment_id]
     report = build_report(await _body_of(user, db), _to_fit(garment))
+
+    기존 = await _reusable(user, garment, report, db)
+    if 기존 is not None:
+        response.status_code = 200
+        return 기존
 
     fitting = Fitting(
         user_id=user.id,
