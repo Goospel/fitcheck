@@ -293,3 +293,52 @@ GET  /garments   → 내 의류 목록 (최신순)
 **한 행이 한 사이즈다.** 같은 옷의 M·L 은 **두 번 등록**하고, 사이즈 비교는 그 두 `id` 를 넘긴다.
 
 ⚠️ `photoPath` 는 지금 항상 `null` 이다. 업로드(D1)가 아직 없어 **받아만 둔다.**
+
+---
+
+## 부록 · 핏 분석 · 사이즈 비교 API (KimZion)
+
+```
+POST /fittings            { "garmentId": "uuid" }        → 201
+GET  /fittings/{id}                                       → 200
+POST /fittings/compare    { "garmentIds": ["a","b"] }     → 200
+```
+
+### 핏 분석 — 계약 2를 중첩해 돌려준다
+
+```json
+{
+  "id": "uuid",
+  "garmentId": "uuid",
+  "report": { "fitGrade": "레귤러핏", "gaugeLevel": 3, "...": "계약 2 그대로" },
+  "createdAt": "2026-08-19T…"
+}
+```
+
+**리포트는 그 시점 스냅샷이다.** 프로필을 나중에 바꿔도 `GET /fittings/{id}` 는 만들 때의 판정을 그대로 돌려준다 — 히스토리가 과거를 다시 쓰면 안 된다.
+
+### 사이즈 비교 — 저장하지 않는다
+
+```json
+{
+  "sizes": [
+    { "sizeName": "M", "report": { "...": "계약 2" } },
+    { "sizeName": "L", "report": { "...": "계약 2" } }
+  ],
+  "recommendedSize": "M"
+}
+```
+
+`garmentIds` 를 **보낸 순서 그대로** 돌려준다. 계산만 여러 번 돌릴 뿐 히스토리에 남기지 않는다.
+
+### 에러 코드
+
+| 코드 | HTTP | 언제 |
+|---|---|---|
+| `PROFILE_NOT_FOUND` | 404 | 프로필을 아직 안 만들었다 |
+| `MEASUREMENTS_REQUIRED` | 400 | **가슴·어깨 실측이 없다** — A4 추정기가 붙기 전까지 |
+| `GARMENT_NOT_FOUND` | 404 | 없는 의류거나 **남의 의류** |
+| `FITTING_NOT_FOUND` | 404 | 없는 결과거나 남의 결과 |
+| `DUPLICATE_SIZE_NAME` | 400 | 비교 목록에 같은 사이즈명이 둘 |
+
+⚠️ **`MEASUREMENTS_REQUIRED` 는 지금 실제로 자주 난다.** A4가 없어 프로필 1단계(키·몸무게·성별)만 채운 사용자는 리포트를 받을 수 없다. 지어낸 추정값으로 리포트를 내는 것보다 낫다고 판단했다 ([Q3](open-questions.md)).
