@@ -62,16 +62,21 @@ def photo_key(user_id: uuid.UUID, fmt: str, garment_id: uuid.UUID | None = None)
 async def upload(key: str, data: bytes, fmt: str) -> None:
     """같은 키면 덮어쓴다 — 사진을 다시 올리는 것이 새 파일을 만드는 일이 아니다.
 
-    ⚠️ **`cacheControl` 을 0 으로 준다.** 기본값은 3600 이라 CDN 이 한 시간 들고 있고,
-       그러면 파일을 지운 뒤에도 **이미 발급된 서명 URL 로 캐시본이 계속 나온다**
-       (실측: 계정을 지웠는데 옛 URL 이 200 을 돌려줬다). 전신 사진이라 「계정을
-       지우면 사라진다」가 한 시간 뒤에 참이 되면 안 된다. 우리 규모에서 매번
-       원본을 읽는 비용은 사람당 사진 몇 장이라 없는 것과 같다.
+    ⚠️ **지운 사진이 CDN 캐시에서 잠깐 더 나온다 — 여기서 막을 수 없다.**
+       계정을 지우면 객체는 즉시 사라지고 새 서명 URL 도 발급되지 않는다. 그런데
+       **이미 발급된** 서명 URL 은 엣지 캐시에 걸려 잠깐 더 200 을 돌려줄 수 있다
+       (배포 서버 실측 `cf-cache=HIT · age=6`).
+
+       업로드 옵션으로 못 막는 것을 확인했다 — 저장되는 기본값은 이미 `no-cache` 이고,
+       `cache-control: "0"` 을 줘도 **응답 헤더가 달라지지 않는다.** Supabase 가 붙이는
+       `Expires: +1h` 를 Cloudflare 가 보고 캐시한다.
+
+       노출 범위는 **유효한 서명 URL 을 이미 손에 쥔 쪽**뿐이고 (서명 URL 은 본인
+       인증 응답으로만 나간다) 그 토큰도 1시간이면 만료된다. 지금 규모에서 여기까지
+       쫓지 않는다 — 필요해지면 서명 유효기간을 분 단위로 줄이는 쪽이 먼저다.
     """
     await _client().from_(BUCKET).upload(
-        key,
-        data,
-        {"content-type": f"image/{fmt.lower()}", "upsert": "true", "cacheControl": "0"},
+        key, data, {"content-type": f"image/{fmt.lower()}", "upsert": "true"}
     )
 
 
