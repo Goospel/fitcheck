@@ -51,6 +51,12 @@ SLEEVE_PROMPTS: dict[str, str] = {
     "손등 일부 덮음": "The sleeves partly cover the back of the hand.",
 }
 
+# ── 어깨 → 그림 지시 ──────────────────────────────────────────────────
+# Q4 확정 (2026-08-20, 김정빈) — PRD 6.2.4 리포트 예시 문장을 그대로 임계값으로 쓴다:
+# 「어깨 +4cm → 드롭숄더로 떨어짐」. CLAUDE.md 1절(확정 상수) 갱신 — 3명 동의 대기.
+SHOULDER_DROP_THRESHOLD = 4.0
+SHOULDER_DROP_PROMPT = "The shoulder seams drop below the natural shoulder line (drop shoulder)."
+
 # 목록과 매핑이 어긋나면 그 항목만 조용히 지시가 빠진다 — 임포트 시점에 잡는다
 assert set(GRADE_PROMPTS) == set(GRADE_ORDER)
 assert set(LENGTH_PROMPTS) == set(LENGTH_LABELS)
@@ -59,10 +65,6 @@ assert set(SLEEVE_PROMPTS) == set(SLEEVE_LABELS)
 
 def build_prompt(report: FitReport) -> str:
     """핏 리포트를 이미지 생성 모델에 넘길 영어 지시문으로 바꾼다.
-
-    ⚠️ **어깨는 아직 지시하지 않는다.** PRD 6.2.1 은 「드롭숄더는 별도 처리」라고만
-    적었고 **몇 cm부터 드롭숄더인지가 없다** (docs/open-questions.md Q4 잔여분).
-    기준이 정해지면 여기에 한 줄이 붙는다.
 
     모르는 등급이 와도 터지지 않는다 — 프로필·리포트에 옛 문구가 남아 있다고
     이미지 생성이 죽으면 안 된다. 그 줄만 빠진다.
@@ -76,4 +78,6 @@ def build_prompt(report: FitReport) -> str:
         문장 = 표.get(라벨)
         if 문장:
             조각.append(문장)
+    if report.shoulder_diff >= SHOULDER_DROP_THRESHOLD:
+        조각.append(SHOULDER_DROP_PROMPT)
     return " ".join(조각)
