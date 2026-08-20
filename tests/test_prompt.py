@@ -11,7 +11,14 @@ import pytest
 
 from fit.grade import GRADE_ORDER
 from fit.report import LENGTH_LABELS, SLEEVE_LABELS, FitReport
-from images.prompt import GRADE_PROMPTS, LENGTH_PROMPTS, SLEEVE_PROMPTS, build_prompt
+from images.prompt import (
+    GRADE_PROMPTS,
+    LENGTH_PROMPTS,
+    SHOULDER_DROP_PROMPT,
+    SHOULDER_DROP_THRESHOLD,
+    SLEEVE_PROMPTS,
+    build_prompt,
+)
 
 
 def 리포트(**over) -> FitReport:
@@ -103,8 +110,17 @@ class Test아직_비어_있는_것:
         assert SLEEVE_PROMPTS["손등 일부 덮음"] in 문장
 
 
-class Test어깨는_아직_판정할_수_없다:
-    """PRD 6.2.1 「드롭숄더는 별도 처리」 — 몇 cm부터인지가 없다 (Q4 잔여분)"""
+class Test어깨_드롭숄더:
+    """Q4 확정 (2026-08-20) — PRD 6.2.4 예시값 +4cm를 임계값으로 쓴다"""
 
-    def test_어깨_차이가_커도_드롭숄더라고_말하지_않는다(self):
-        assert "drop" not in build_prompt(리포트(shoulder_diff=12.0)).lower()
+    def test_임계값_이상이면_드롭숄더를_지시한다(self):
+        assert SHOULDER_DROP_PROMPT in build_prompt(리포트(shoulder_diff=SHOULDER_DROP_THRESHOLD))
+
+    def test_임계값_미만이면_지시하지_않는다(self):
+        문장 = build_prompt(리포트(shoulder_diff=SHOULDER_DROP_THRESHOLD - 0.1))
+        assert SHOULDER_DROP_PROMPT not in 문장
+        assert "drop" not in 문장.lower()
+
+    def test_음수_차이는_지시하지_않는다(self):
+        # 옷 어깨가 몸보다 좁은 경우 — 드롭숄더가 아니다
+        assert "drop" not in build_prompt(리포트(shoulder_diff=-3.0)).lower()
