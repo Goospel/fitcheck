@@ -136,14 +136,22 @@ class Test게이지:
         assert GRADE_ORDER == ("너무 작음", "슬림핏", "레귤러핏", "세미오버핏", "오버핏")
 
 
-class Test미확정_기장_소매:
-    """docs/open-questions.md Q1 · Q2 — 기준이 정해지면 이 테스트가 깨져야 한다"""
+class Test문구는_모르면_비운다:
+    """Q1·Q2 둘 다 종결됐다. 이제 None 은 「기준이 없다」가 아니라 「값을 모른다」다"""
 
-    def test_기장_문구는_아직_비어_있다(self):
+    def test_키가_없으면_기장이_비어_있다(self):
+        # 기본_몸() 에는 height 가 없다 — 그럴듯한 기장을 지어내지 않는다
         assert build_report(기본_몸(), 기본_옷()).length_label is None
 
-    def test_소매_문구는_아직_비어_있다(self):
-        assert build_report(기본_몸(), 기본_옷()).sleeve_label is None
+    def test_소매길이가_없으면_소매가_비어_있다(self):
+        assert build_report(기본_몸(), 기본_옷(sleeve=None)).sleeve_label is None
+
+    def test_팔길이가_없어도_소매가_비어_있다(self):
+        assert build_report(기본_몸(arm=None), 기본_옷()).sleeve_label is None
+
+    def test_둘_다_있으면_문구가_나온다(self):
+        # 소매 60 − 팔 58 = +2.0 → 하한 포함이라 「손등 일부 덮음」
+        assert build_report(기본_몸(), 기본_옷()).sleeve_label == "손등 일부 덮음"
 
 
 class Test계약_2_직렬화:
@@ -158,8 +166,8 @@ class Test계약_2_직렬화:
             "waistEase": 24,
             "shoulderDiff": 4,
             "sleeveDiff": 2,
-            "lengthLabel": None,
-            "sleeveLabel": None,
+            "lengthLabel": None,          # 기본_몸() 에 키가 없다
+            "sleeveLabel": "손등 일부 덮음",  # 60 − 58 = +2.0, 하한 포함
             "confidence": "실측",
             "preferredGrade": "레귤러핏",
             "gradeDistance": 1,

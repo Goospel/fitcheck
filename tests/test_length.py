@@ -197,7 +197,7 @@ class Test순수_함수다:
 
 
 class Test리포트에_실린다:
-    """계약 2 의 lengthLabel 이 드디어 채워진다"""
+    """계약 2 의 lengthLabel · sleeveLabel 이 드디어 둘 다 채워진다"""
 
     def 몸(self, **kw):
         기본 = dict(chest=99.2, shoulder=40.0, waist=80.5, arm=59.1,
@@ -218,9 +218,15 @@ class Test리포트에_실린다:
     def test_키가_없으면_여전히_None(self):
         assert build_report(self.몸(height=None), self.옷()).length_label is None
 
-    def test_소매는_아직_None_이다(self):
-        # Q2(밴드 폭)는 인체 데이터로 안 풀린다 — 합의 전까지 비워 둔다
-        assert build_report(self.몸(), self.옷(sleeve=60.0)).sleeve_label is None
+    def test_소매_문구도_채워진다(self):
+        # 소매 60.0 − 팔 59.1 = +0.9 → 밴드(±2) 안이라 「손목」 (Q2 종결 · 2026-08-20)
+        assert build_report(self.몸(), self.옷(sleeve=60.0)).sleeve_label == "손목"
+
+    def test_소매길이가_없으면_소매만_비고_기장은_남는다(self):
+        # 둘은 서로 다른 입력에서 나온다 — 하나가 없다고 같이 비면 안 된다
+        r = build_report(self.몸(), self.옷())
+        assert r.sleeve_label is None
+        assert r.length_label == 엉덩반
 
     def test_등급은_안_건드렸다(self):
         # 기장을 붙이면서 가슴 판정이 흔들리면 안 된다

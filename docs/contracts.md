@@ -120,7 +120,7 @@ async def 핸들러(db: AsyncSession = Depends(get_session)):
 | `shoulderDiff` | 어깨 차이 cm (양수 = 옷이 더 넓음). **항상 있다** |
 | `sleeveDiff` | 소매 길이 차 cm. 사용자 팔길이나 의류 소매길이가 없으면 `null` |
 | `lengthLabel` | 기장 문구 5종 중 하나. **2026-08-20부터 채워진다** ([Q1](open-questions.md) 종결). 프로필에 키가 없을 때만 `null` |
-| `sleeveLabel` | 소매 문구. **아직 미확정이라 항상 `null`** ([Q2](open-questions.md)) |
+| `sleeveLabel` | 소매 문구 3종 중 하나. **2026-08-20부터 채워진다** ([Q2](open-questions.md) 종결). `sleeveDiff` 가 `null` 일 때만 `null`. ⚠️ **반팔도 「손목 위」로 나온다** — 얼마나 위인지는 `sleeveDiff` 를 봐야 한다 |
 | `confidence` | `"실측"` \| `"추정"`. 어깨·가슴·허리를 **전부** 직접 입력했을 때만 실측 |
 | `preferredGrade` | 사용자 선호 핏. 미설정이거나 목록에 없는 값이면 `null` |
 | `gradeDistance` | 선호 대비 단계 차. **양수면 실제가 더 헐렁.** 선호 미설정이면 `null` |
@@ -530,8 +530,11 @@ in the product image. A slightly roomy fit with noticeable ease across the chest
 
 | 지금 나가는 것 | 아직 안 나가는 것 |
 |---|---|
-| 핏 등급 5종 | 소매 — 밴드 폭 미확정 ([Q2](open-questions.md)) |
+| 핏 등급 5종 | — **없다** |
 | 기장 5종 (2026-08-20 붙었다) | |
+| 소매 3종 (2026-08-20 붙었다 · [Q2](open-questions.md) 종결) | |
 | 어깨 드롭숄더 — `shoulderDiff >= 4cm` (2026-08-20) | |
 
-기장·소매 매핑은 **미리 다 넣어 뒀었다.** 실제로 A3 가 붙던 날 `images/prompt.py` 를 한 줄도 안 고쳤는데 기장 문장이 프롬프트에 늘었다 — 소매도 Q2 만 정해지면 같은 방식으로 늘어난다.
+기장·소매 매핑은 **미리 다 넣어 뒀었다.** 실제로 붙던 날 `images/prompt.py` 를 **한 줄도 안 고쳤는데** 두 문장이 다 프롬프트에 늘었다 — 미리 넣어 둔 매핑이 두 번 값을 했다.
+
+⚠️ **프롬프트가 바뀌면 D6 재사용이 끊긴다.** 재사용 판정은 저장된 리포트 dict 전체 비교라(`api/fittings.py` 의 `_reusable`), `sleeveLabel` 이 `null` 이던 시절에 만든 결과는 새 판정과 안 맞는다. **이미 만들어 둔 것에 대고 다시 「생성」을 누르면 새 잡이 생긴다.**
