@@ -20,7 +20,7 @@ https://web-production-19ef6.up.railway.app
 
 `main` 에 머지되면 자동으로 재배포된다. 문서는 `/docs` 에 있다 (Swagger UI — 여기서 직접 호출해 볼 수 있다).
 
-⚠️ **CORS 는 지금 `localhost:3000` · `localhost:5173` 만 허용한다.** 프론트를 배포하면 그 도메인을 알려 달라 — `CORS_ORIGINS` 에 추가해야 브라우저가 요청을 막지 않는다. 네이티브 앱이면 CORS 가 적용되지 않으니 상관없다.
+✅ **CORS 는 Vercel 프리뷰까지 미리 열어 뒀다 (2026-08-20).** `localhost`(포트 무관)와 `*.vercel.app` · `*.netlify.app` · `*.pages.dev` · `*.github.io` 가 통과한다 — 프리뷰 URL 이 푸시마다 바뀌어도 백엔드를 고칠 필요가 없다. 그 밖의 도메인을 쓰게 되면 알려 달라(`CORS_ORIGINS`). 네이티브 앱이면 CORS 가 적용되지 않으니 상관없다.
 
 ✅ **이미지 생성이 붙었다.** 전신 사진과 의류 사진이 **둘 다** 있으면 `POST /fittings` 가 잡을 큐에 넣고 `status: "대기"` 로 답한다. 하나라도 없으면 `"리포트만"` 이고 기다릴 것이 없다.
 
