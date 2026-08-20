@@ -100,9 +100,39 @@ PUT /profile   → 200
 ```
 
 화면 2단계(필수 → 선택)를 한 요청으로 합쳤다. **그래서 `PUT` 은 덮어쓰기다.**
-안 보낸 치수는 지워지고 다시 「추정」으로 돌아간다. 부분 수정 화면이라면 `GET` 으로 받은 값을 그대로 실어 보낸다.
+안 보낸 치수는 지워지고 다시 「추정」으로 돌아간다.
+
+⚠️ **보내는 모양과 받는 모양이 다르다.** 치수 4개를 요청에서는 **평평하게** 올리고,
+응답에서만 `measurements` 로 감싸서 내려준다.
 
 ```json
+// PUT /profile — 보내는 것
+{
+  "height": 175, "weight": 70, "gender": "남성",
+  "shoulder": 45.0, "chest": 96.0,      // 아는 것만. 빼면 서버가 추정한다
+  "preferredGrade": "레귤러핏"
+}
+```
+
+⚠️ **`GET` 응답을 그대로 `PUT` 하면 실측이 전부 날아간다.** `measurements` 는 요청에 없는
+필드라 조용히 버려지고, 치수 넷이 다시 「추정」으로 돌아간다 — **에러가 안 난다.**
+부분 수정 화면이라면 `GET` 응답을 그대로 넘기지 말고 **평평하게 풀어서** 보낸다.
+
+```js
+const { measurements: m, ...rest } = await getProfile()
+await putProfile({ height: rest.height, weight: rest.weight, gender: rest.gender,
+                   preferredGrade: rest.preferredGrade,
+                   shoulder: m.shoulder.source === "실측" ? m.shoulder.value : undefined,
+                   chest:    m.chest.source    === "실측" ? m.chest.value    : undefined,
+                   waist:    m.waist.source    === "실측" ? m.waist.value    : undefined,
+                   arm:      m.arm.source      === "실측" ? m.arm.value      : undefined })
+```
+
+**추정값을 되돌려 보내면 그때부터 「실측」이 된다.** 정확도 `n/5` 가 부풀고 배지도 틀리므로,
+위처럼 `source` 가 `실측` 인 것만 실어 보낸다.
+
+```json
+// GET /profile — 받는 것
 {
   "height": 175, "weight": 70, "gender": "남성",
   "measurements": {
