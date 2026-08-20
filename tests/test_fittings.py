@@ -2,8 +2,8 @@
 
 프로필 + 의류 → A5 → 리포트. 계산은 이미 `fit/` 에 있고 여기는 **꺼내 쓰는 층**이다.
 
-⚠️ A4(치수 추정기)가 아직 없다 — 가슴·어깨를 직접 입력하지 않은 프로필은
-   리포트를 낼 수 없다. 지어낸 값으로 채우지 않고 **명시적으로 거절**한다.
+⚠️ **A4 가 붙었다 (2026-08-20)** — 실측이 없으면 키·몸무게·성별로 추정해서 낸다.
+   거절하지 않는다. 어디까지가 추정인지는 응답의 `confidence` 가 말한다.
 """
 
 import uuid
@@ -222,3 +222,31 @@ class TestF10_사이즈_비교:
         인증, ids = 두사이즈
         r = await client.post("/fittings/compare", json={"garmentIds": ids}, headers=인증)
         assert r.status_code == 200
+
+
+class Test기장_문구가_응답에_실린다:
+    """A3 · 계약 2 의 lengthLabel — 여기까지 와야 프론트가 본다"""
+
+    async def test_lengthLabel_이_채워진다(self, client, 준비):
+        인증, 의류_id = 준비
+        r = await client.post("/fittings", json={"garmentId": 의류_id}, headers=인증)
+        # 175cm 남성 · 총장 70cm → 엉덩이 경계(62.2) 위, 볼기고랑(70.5) 아래
+        assert r.json()["report"]["lengthLabel"] == "엉덩이를 반쯤 덮는 기장"
+
+    async def test_총장이_길면_롱_기장이_된다(self, client, 인증):
+        await client.put("/profile", json=프로필, headers=인증)
+        긴옷 = await client.post("/garments", json={**의류, "length": 78.0}, headers=인증)
+        r = await client.post("/fittings", json={"garmentId": 긴옷.json()["id"]}, headers=인증)
+        assert r.json()["report"]["lengthLabel"] == "엉덩이를 완전히 덮는 롱 기장"
+
+    async def test_키가_다르면_같은_옷도_다르게_판정된다(self, client, 인증):
+        # 같은 70cm 총장이 작은 사람에겐 더 길게 내려온다
+        await client.put("/profile", json={**프로필, "height": 155}, headers=인증)
+        옷 = await client.post("/garments", json=의류, headers=인증)
+        r = await client.post("/fittings", json={"garmentId": 옷.json()["id"]}, headers=인증)
+        assert r.json()["report"]["lengthLabel"] == "엉덩이를 완전히 덮는 롱 기장"
+
+    async def test_소매는_아직_null_이다(self, client, 준비):
+        인증, 의류_id = 준비
+        r = await client.post("/fittings", json={"garmentId": 의류_id}, headers=인증)
+        assert r.json()["report"]["sleeveLabel"] is None

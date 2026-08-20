@@ -93,6 +93,10 @@ async def _body_of(user: User, db: AsyncSession) -> Body:
         #    추정 리포트가 「실측」 배지를 달고 나간다
         measured=frozenset(n for n in MEASUREMENTS if getattr(profile, n) is not None),
         preferred_grade=profile.preferred_grade,
+        # A3(기장 판정)용. 총장이 몸의 어디까지 오는지는 **키**가 정한다 —
+        # 성별은 밴드 폭에 비해 영향이 작지만(0.9cm 이내) A4 와 같은 처리로 맞춘다
+        height=profile.height,
+        gender=profile.gender,
     )
 
 
