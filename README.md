@@ -38,6 +38,7 @@ uv run pytest
 
 - **[docs/frontend.md](docs/frontend.md)** — **프론트는 여기부터.** 붙이는 순서와 자주 걸리는 것
 - **[docs/contracts.md](docs/contracts.md)** — 세 명이 같은 모양을 보게 하는 문서 (DB 스키마 · 리포트 JSON · 잡 상태 + API 전체)
+- **[docs/demo.md](docs/demo.md)** — **발표 전에 읽는다.** 시연 대본 · 미리 만들어 둔 계정 · 넘어질 곳
 - **[plan.md](plan.md)** — 누가 뭘 언제 (담당·일정·리스크)
 - **[CLAUDE.md](CLAUDE.md)** — 어떻게 쓰는가 (확정 상수·스택 규약·디렉터리 소유권·git)
 - **[docs/open-questions.md](docs/open-questions.md)** — 아직 안 정해진 것 (막힘 · 임시 진행 · 운영)
