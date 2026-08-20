@@ -82,7 +82,7 @@ uv run uvicorn main:app --reload
 
 - [x] ✅ **계약 1 · DB 스키마** (KimZion 인수) — `app_user` / `profile` / `garment` / `fitting` / `image_job` 를 [docs/contracts.md](docs/contracts.md)에 확정. **B3 · D4 이제 시작 가능**
 - [x] ✅ **계약 2 · 핏 리포트 JSON** (KimZion) — [docs/contracts.md](docs/contracts.md)에 확정. **D3와 프론트는 이제 시작 가능**
-- [ ] ⬜ **계약 3 · 잡 상태 모델** (김정빈) — 대기 / 생성중 / 완료 / 실패 / 리포트만
+- [x] ✅ **계약 3 · 잡 상태 모델** (KimZion 인수) — 대기 / 생성중 / 완료 / 실패 / 리포트만. `db/models.py` 의 `FITTING_STATUSES` 가 유일한 출처고, `GET /fittings` 의 뱃지 개수가 이 다섯을 그대로 센다
 
 확정되면 `docs/contracts.md` 한 파일에 모아 커밋한다. **작업 시작 전 각자 클로드에게 이 파일을 먼저 읽힌다.**
 
@@ -151,7 +151,7 @@ DB도 API도 프론트도 필요 없이 시작할 수 있는 유일한 덩어리
 
 ## 5. BE-2 · KimZion 인수 (원래 맹동훈) — 스키마 · 인증 · 프로필 · 인프라 · 배포
 
-- [ ] 🔜 **B0 · Supabase 프로젝트 + Railway 연결** (1h) — **이게 없으면 아무도 DB를 못 쓴다**
+- [x] ✅ **B0 · Supabase 프로젝트 + Railway 연결** — **이게 없으면 아무도 DB를 못 쓴다**
   - [x] ✅ Supabase 프로젝트 생성 — `fitcheck` · Seoul(ap-northeast-2) · PostgreSQL 17.6. 테이블 5개 · 외래키 CASCADE 5개 확인
   - [x] ✅ `db/session.py` (async 엔진 + 세션) — 엔진은 **처음 쓸 때** 만든다. `DATABASE_URL` 이 없어도 앱은 뜬다
   - [x] ✅ 실 DB 스모크 22건 통과 — 가입 → 프로필 → 의류 → 핏 리포트 → 사이즈 비교 → 히스토리 → 탈퇴(CASCADE). **인메모리 SQLite 로만 돌던 코드가 진짜 Postgres 에서 그대로 돌았다**
