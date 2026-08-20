@@ -24,7 +24,25 @@ class Settings(BaseSettings):
     # 모델은 코드가 아니라 환경변수로 바꾼다 — 갈아 끼울 때 배포만 하면 된다
     image_model: str = "gpt-image-2"
 
+    # ── CORS ──
+    # 정해진 도메인은 여기 쉼표로 나열한다. 프론트 배포처가 확정되면 이쪽이 정답이다
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
+
+    # ⚠️ **프리뷰 배포는 호스트가 매번 바뀐다.** Vercel·Netlify 는 푸시마다
+    #    `fitcheck-a1b2c3-team.vercel.app` 같은 새 주소를 만든다. 고정 목록만 두면
+    #    프론트가 푸시할 때마다 백엔드를 고쳐야 해서, 패턴으로도 받는다.
+    #
+    # ⚠️ **`.*` 로 시작하는 패턴을 쓰지 않는다.** Starlette 는 `fullmatch` 라
+    #    접미사 공격(`vercel.app.evil.com`)은 원래 막히지만, 앞에 `.*` 를 붙이는
+    #    순간 뚫린다. 호스트 라벨을 명시해 **직접 등록 가능한 유사 도메인**
+    #    (`evil-vercel.app`)까지 막는다. 회귀는 tests/test_cors.py 가 잡는다.
+    #
+    # 배포 도메인이 정해지면 `cors_origins` 에 넣고 이 값을 좁히거나 비우면 된다.
+    cors_origin_regex: str = (
+        r"https?://(?:localhost|127\.0\.0\.1)(?::\d+)?"
+        r"|https://[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*"
+        r"\.(?:vercel\.app|netlify\.app|pages\.dev|github\.io)"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

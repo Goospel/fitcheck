@@ -29,15 +29,23 @@ curl https://web-production-19ef6.up.railway.app/health
 
 ---
 
-## 배포하면 도메인을 알려 달라 (CORS)
+## CORS — Vercel이면 아무것도 안 해도 된다
 
-지금 브라우저에서 허용된 출처는 **`localhost:3000` · `localhost:5173` 둘뿐**이다.
+**프리뷰 배포까지 미리 열어 뒀다 (2026-08-20).** 통과하는 출처:
 
-로컬 개발은 그대로 되지만 **프론트를 배포하는 순간 그 도메인에서는 요청이 전부 막힌다.**
-CORS 는 서버가 허용 목록을 갖고 있어야 뚫리는 구조라 프론트 쪽에서 우회할 방법이 없다.
+```
+http(s)://localhost:<아무 포트>      · 127.0.0.1 도 같다
+https://<무엇이든>.vercel.app        · 프리뷰 URL 이 푸시마다 바뀌어도 된다
+https://<무엇이든>.netlify.app
+https://<무엇이든>.pages.dev         · Cloudflare Pages
+https://<무엇이든>.github.io
+```
 
-**배포 도메인이 정해지면 바로 알려 달라.** 환경변수에 한 줄 추가하면 끝난다 (1분).
-네이티브 앱이면 CORS 가 적용되지 않으니 상관없다.
+vite 가 포트를 5174로 옮겨 떠도, Vercel 프리뷰가 `fitcheck-a1b2c3-team.vercel.app`
+처럼 매번 달라져도 **백엔드를 고칠 필요가 없다.**
+
+**커스텀 도메인을 붙이면 그때만 알려 달라** (`fitcheck.com` 같은 것). 환경변수에 한 줄
+추가하면 끝난다. 네이티브 앱이면 CORS 자체가 적용되지 않으니 상관없다.
 
 ---
 
@@ -316,7 +324,7 @@ POST /fittings/compare   { "garmentIds": ["a", "b"] }
 
 정리하면 이렇다. 대부분 여기서 시간을 쓴다.
 
-1. **배포하면 CORS 부터 막힌다** — 도메인을 알려 달라
+1. **CORS 는 Vercel·localhost 면 이미 뚫려 있다** — 커스텀 도메인 붙일 때만 알려 달라
 2. **`PUT /profile` 은 전체 교체** — 안 보낸 치수는 지워진다
 3. **전신 사진은 `PUT /profile` 로 안 바뀐다** — 업로드 엔드포인트가 따로다
 4. **`photoUrl` · `imageUrl` 은 1시간짜리** — 저장하지 말고 매번 응답에서 읽는다

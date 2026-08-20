@@ -25,6 +25,9 @@ app = FastAPI(title="FitCheck API", docs_url="/docs", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    # 프리뷰 배포는 호스트가 매번 바뀐다 — 패턴으로도 받는다 (core/config.py 참조).
+    # 비면 None 을 넘겨 정규식 검사를 통째로 끈다
+    allow_origin_regex=settings.cors_origin_regex or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
