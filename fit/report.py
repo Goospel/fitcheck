@@ -3,8 +3,11 @@
 A1(여유량)과 A2(등급)을 묶어 **프론트와 BE-3의 D3가 함께 읽는 한 덩어리**로 만든다.
 DB·네트워크·시간에 의존하지 않는 순수 함수다 (CLAUDE.md 6절).
 
-⚠️ 기장·소매 문구는 판정 기준이 미확정이라 항상 None 이다
-   (docs/open-questions.md Q1 · Q2). A3가 풀리면 여기서 채운다.
+⚠️ **기장은 A3 가 채운다** (2026-08-20 · Q1 종결). 판정에 사용자 키가 필요해서
+   `Body` 에 `height`·`gender` 가 붙었다 — 둘 다 선택이고, 키가 없으면 예전처럼 None 이다.
+
+⚠️ **소매는 아직 None 이다** (docs/open-questions.md Q2). 「손목 = 차이 0」은 데이터가
+   답하지만 밴드 폭은 합의 사항이라 인체 데이터로 안 풀린다. 정해지면 여기서 채운다.
 """
 
 from dataclasses import dataclass, field
@@ -12,18 +15,12 @@ from dataclasses import dataclass, field
 from core.schema import Schema
 from fit.ease import chest_ease, shoulder_diff, sleeve_diff, waist_ease
 from fit.grade import GRADE_ORDER, fit_grade
+from fit.length import LENGTH_LABELS, length_label
 
-# 기장 5단계 · 소매 3단계 문구 — PRD 6.2.3 확정. **여기가 유일한 출처다.**
-# 판정 기준(경계 숫자)은 아직 없지만(Q1 · Q2) 문구는 확정이라 미리 못 박아 둔다.
-# A3(랜드마크 판정)와 D3(프롬프트 변환)가 둘 다 이 목록을 봐야 한다.
-LENGTH_LABELS: tuple[str, ...] = (
-    "허리 위로 올라오는 크롭 기장",
-    "허리에 딱 떨어지는 기장",
-    "골반에 걸치는 기본 기장",
-    "엉덩이를 반쯤 덮는 기장",
-    "엉덩이를 완전히 덮는 롱 기장",
-)
-
+# 소매 3단계 문구 — PRD 6.2.3 확정. 판정 기준(경계 숫자)은 아직 없다 (Q2).
+# ⚠️ 기장 문구 LENGTH_LABELS 는 **판정 로직 옆에 있으라고** fit/length.py 로 옮겼다.
+#    여기서 재수출하므로 `from fit.report import LENGTH_LABELS` 는 그대로 쓸 수 있다
+#    (images/prompt.py 가 그렇게 읽는다).
 SLEEVE_LABELS: tuple[str, ...] = ("손목 위", "손목", "손등 일부 덮음")
 
 # 신뢰도 배지 기준 — 이 셋을 전부 직접 입력했을 때만 "실측"이다.
@@ -45,6 +42,10 @@ class Body:
     arm: float | None = None
     measured: frozenset[str] = field(default_factory=frozenset)
     preferred_grade: str | None = None
+    # A3(기장 판정)용. 경계는 골격에서 나오므로 **키만** 쓴다 — 몸무게는 안 본다.
+    # 프로필에선 둘 다 필수지만 여기선 선택이다 — 키가 없으면 lengthLabel 이 None 이다
+    height: int | None = None
+    gender: str | None = None
 
 
 @dataclass(frozen=True)
@@ -102,8 +103,8 @@ def build_report(body: Body, garment: Garment) -> FitReport:
         waist_ease=waist_ease(garment.waist_width, body.waist),
         shoulder_diff=shoulder_diff(garment.shoulder, body.shoulder),
         sleeve_diff=sleeve_diff(garment.sleeve, body.arm),
-        length_label=None,   # Q1 미확정 — 지어내지 않는다
-        sleeve_label=None,   # Q2 미확정
+        length_label=length_label(garment.length, body.height, body.gender),
+        sleeve_label=None,   # Q2(소매 밴드 폭) 미확정 — 지어내지 않는다
         confidence="실측" if CONFIDENCE_FIELDS <= body.measured else "추정",
         preferred_grade=preferred,
         grade_distance=distance,

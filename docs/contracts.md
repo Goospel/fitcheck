@@ -102,7 +102,7 @@ async def 핸들러(db: AsyncSession = Depends(get_session)):
   "waistEase": 24.0,
   "shoulderDiff": 4.0,
   "sleeveDiff": 2.0,
-  "lengthLabel": null,
+  "lengthLabel": "엉덩이를 반쯤 덮는 기장",
   "sleeveLabel": null,
   "confidence": "실측",
   "preferredGrade": "레귤러핏",
@@ -119,8 +119,8 @@ async def 핸들러(db: AsyncSession = Depends(get_session)):
 | `waistEase` | 허리 여유 cm. 사용자 허리둘레나 의류 허리단면이 없으면 `null` |
 | `shoulderDiff` | 어깨 차이 cm (양수 = 옷이 더 넓음). **항상 있다** |
 | `sleeveDiff` | 소매 길이 차 cm. 사용자 팔길이나 의류 소매길이가 없으면 `null` |
-| `lengthLabel` | 기장 문구. **판정 기준 미확정이라 지금은 항상 `null`** ([Q1](open-questions.md)) |
-| `sleeveLabel` | 소매 문구. **미확정, 항상 `null`** ([Q2](open-questions.md)) |
+| `lengthLabel` | 기장 문구 5종 중 하나. **2026-08-20부터 채워진다** ([Q1](open-questions.md) 종결). 프로필에 키가 없을 때만 `null` |
+| `sleeveLabel` | 소매 문구. **아직 미확정이라 항상 `null`** ([Q2](open-questions.md)) |
 | `confidence` | `"실측"` \| `"추정"`. 어깨·가슴·허리를 **전부** 직접 입력했을 때만 실측 |
 | `preferredGrade` | 사용자 선호 핏. 미설정이거나 목록에 없는 값이면 `null` |
 | `gradeDistance` | 선호 대비 단계 차. **양수면 실제가 더 헐렁.** 선호 미설정이면 `null` |
@@ -515,8 +515,7 @@ in the product image. A slightly roomy fit with noticeable ease across the chest
 
 | 지금 나가는 것 | 아직 안 나가는 것 |
 |---|---|
-| 핏 등급 5종 | 기장 — A3 미구현 ([Q1](open-questions.md)) |
-| | 소매 — A3 미구현 ([Q2](open-questions.md)) |
-| | 어깨 드롭숄더 — **몇 cm부터인지가 없다** ([Q4 잔여분](open-questions.md)) |
+| 핏 등급 5종 | 소매 — 밴드 폭 미확정 ([Q2](open-questions.md)) |
+| 기장 5종 (2026-08-20 붙었다) | 어깨 드롭숄더 — **몇 cm부터인지가 없다** ([Q4 잔여분](open-questions.md)) |
 
-기장·소매 매핑은 **이미 다 넣어 뒀다.** A3 가 붙어 `lengthLabel`·`sleeveLabel` 이 채워지면 이 파일을 손대지 않아도 문장이 늘어난다.
+기장·소매 매핑은 **미리 다 넣어 뒀었다.** 실제로 A3 가 붙던 날 `images/prompt.py` 를 한 줄도 안 고쳤는데 기장 문장이 프롬프트에 늘었다 — 소매도 Q2 만 정해지면 같은 방식으로 늘어난다.
