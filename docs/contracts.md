@@ -516,6 +516,7 @@ in the product image. A slightly roomy fit with noticeable ease across the chest
 | 지금 나가는 것 | 아직 안 나가는 것 |
 |---|---|
 | 핏 등급 5종 | 소매 — 밴드 폭 미확정 ([Q2](open-questions.md)) |
-| 기장 5종 (2026-08-20 붙었다) | 어깨 드롭숄더 — **몇 cm부터인지가 없다** ([Q4 잔여분](open-questions.md)) |
+| 기장 5종 (2026-08-20 붙었다) | |
+| 어깨 드롭숄더 — `shoulderDiff >= 4cm` (2026-08-20) | |
 
 기장·소매 매핑은 **미리 다 넣어 뒀었다.** 실제로 A3 가 붙던 날 `images/prompt.py` 를 한 줄도 안 고쳤는데 기장 문장이 프롬프트에 늘었다 — 소매도 Q2 만 정해지면 같은 방식으로 늘어난다.
