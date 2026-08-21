@@ -370,6 +370,16 @@ PUT /photos/profile               multipart  file=<사진>   → 200
 PUT /photos/garments/{garmentId}  multipart  file=<사진>   → 200
 ```
 
+⚠️ **두 주소의 검사가 다르다 (2026-08-21).** 전신 사진에만 **비전 검증**이 걸린다 —
+사람이 있는지 · 전신인지 · 부적절하지 않은지를 보고 아니면 400 `PHOTO_UNUSABLE` 이다.
+**제품컷에는 안 건다** (거기 사람이 없는 것이 정상이다).
+
+- **응답이 3~4초 늦다.** 프론트는 업로드 스피너를 이 구간까지 잡아 둔다
+- 막는 이유는 그다음이 비싸기 때문이다 — 제품컷을 전신 사진 자리에 올리면 **2분을
+  기다린 끝에** 이상한 그림이 나온다
+- **판정을 못 하면 통과시킨다.** 모델이 흔들리거나 API 가 죽어도 업로드는 된다 —
+  입구가 막히면 우회로가 없다. 서버에서 `VISION_CHECK=false` 로 끌 수도 있다
+
 ```json
 {
   "photoPath": "8f1c…/profile.jpg",
@@ -401,6 +411,7 @@ PUT /photos/garments/{garmentId}  multipart  file=<사진>   → 200
 | `PHOTO_FORMAT` | 400 | JPG · PNG · WEBP 가 아니다 |
 | `PHOTO_UNREADABLE` | 400 | 이미지로 열리지 않거나 지나치게 크다 |
 | `PHOTO_TOO_LARGE` | 413 | 10MB 초과. **다 받기 전에 끊는다** |
+| `PHOTO_UNUSABLE` | 400 | **전신 사진에만.** 사람이 없거나 · 전신이 아니거나 · 부적절하다 (2026-08-21 추가) |
 | `PROFILE_NOT_FOUND` | 404 | 프로필을 먼저 만들어야 붙일 자리가 있다 |
 | `GARMENT_NOT_FOUND` | 404 | 없는 의류거나 **남의 의류** |
 | `STORAGE_NOT_CONFIGURED` | 503 | 서버에 Storage 설정이 없다 (로컬에서만 난다) |

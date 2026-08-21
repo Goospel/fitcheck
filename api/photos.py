@@ -21,6 +21,7 @@ from db.models import Garment, Profile, User
 from db.session import get_session
 from images import storage
 from images.validate import normalize_photo
+from images.vision import check_person_photo
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 
@@ -52,10 +53,20 @@ async def _읽기(file: UploadFile) -> bytes:
     return b"".join(덩어리)
 
 
-async def _저장(행, file: UploadFile, user_id: uuid.UUID, garment_id=None) -> str:
+async def _저장(
+    행, file: UploadFile, user_id: uuid.UUID, garment_id=None, *, 사람사진: bool = False
+) -> str:
     """검증 → 업로드 → 행에 경로 기록. **검증이 먼저다** — 거부할 사진을 먼저 올리면
-    아무도 안 읽는 파일이 저장소에 쌓인다."""
+    아무도 안 읽는 파일이 저장소에 쌓인다.
+
+    `사람사진` 이면 비전 검증(D2)까지 건다. **의류 제품컷에는 걸지 않는다** — 거기
+    사람이 없는 것이 정상이다.
+    """
     data, fmt = normalize_photo(await _읽기(file))
+    if 사람사진:
+        # ⚠️ 원본이 아니라 **EXIF 를 편 뒤의 바이트**를 넘긴다. 눕혀 저장된 폰 사진을
+        #    그대로 보내면 모델 눈에도 누워 보여 「전신 아님」으로 오판된다
+        await check_person_photo(data)
     key = storage.photo_key(user_id, fmt, garment_id)
     await storage.upload(key, data, fmt)
 
@@ -76,11 +87,15 @@ async def profile_photo(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
 ) -> PhotoResponse:
-    """전신 사진. 프로필이 있어야 붙일 자리가 있다."""
+    """전신 사진. 프로필이 있어야 붙일 자리가 있다.
+
+    ⚠️ **여기만 비전 검증(D2)이 걸린다.** 제품컷을 전신 사진 자리에 올리면 지금은
+       2분을 기다린 끝에 이상한 그림을 받는다 — 입구에서 그 2분을 아낀다.
+    """
     profile = await db.get(Profile, user.id)
     if profile is None:
         raise AppError("PROFILE_NOT_FOUND", "프로필을 먼저 입력해 주세요", 404)
-    key = await _저장(profile, file, user.id)
+    key = await _저장(profile, file, user.id, 사람사진=True)
     await db.commit()
     return await _응답(key)
 

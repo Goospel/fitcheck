@@ -3,6 +3,8 @@
 ⚠️ **팀 공용 DB 에 절대 붙지 않는다** (CLAUDE.md 2절). SQLite 를 메모리에 띄워
 매 테스트마다 새로 만든다 — 가짜 세션을 손으로 짜는 것보다 짧고, 유니크 제약처럼
 「진짜 DB 만 잡는 것」까지 잡힌다.
+
+⚠️ **외부 API 도 안 부른다** — 아래 `비전검증_끄기` 참고.
 """
 
 import pytest
@@ -11,9 +13,24 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from core.config import settings
 from db.models import Base
 from db.session import get_session
 from main import app
+
+
+@pytest.fixture(autouse=True)
+def 비전검증_끄기(monkeypatch):
+    """D2 비전 검증을 전 테스트에서 끈다. **실측으로 배운 것이다.**
+
+    이 검증은 `PUT /photos/profile` 에 붙어 있어서, 끄지 않으면 사진을 올리는
+    테스트마다 OpenAI 를 때린다. 실제로 붙이자마자 **12초짜리 스위트가 111초**가
+    되고 31건이 깨졌다 — 테스트 픽스처는 합성 이미지라 「사람 없음」으로 정직하게
+    거부당한 것이다. 느린 것보다 **돈이 나가는 쪽**이 더 나쁘다.
+
+    판정 로직은 `tests/test_vision.py` 가 순수 함수(`verdict`)로 따로 시험한다.
+    """
+    monkeypatch.setattr(settings, "vision_check", False)
 
 
 @pytest.fixture
