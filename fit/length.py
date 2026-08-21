@@ -56,6 +56,21 @@ _자리 = 1
 # 0 이 아닌 값을 넣으려면 실착 비교 데이터가 있어야 한다 — 지어내지 않는다
 DRAPE_ALLOWANCE = 0.0
 
+# 소매 3단계 문구 — PRD 6.2.3 확정. **여기가 유일한 출처다.**
+# `fit.report` 가 그대로 재수출하므로 `from fit.report import SLEEVE_LABELS` 는 산다
+# (images/prompt.py 가 그렇게 읽는다). 순서가 곧 짧은 것 → 긴 것이다.
+SLEEVE_LABELS: tuple[str, ...] = ("손목 위", "손목", "손등 일부 덮음")
+
+# 「손목」으로 볼 밴드의 반폭 (cm) — **합의값이다. 인체 데이터가 아니다** (Q2 종결 · 2026-08-20).
+# 「차이 0 = 정확히 손목」은 조사가 답한다: `팔길이` 항목이 어깨점에서 **손목까지**라
+# A4 가 추정하는 팔길이가 곧 손목 지점이다. 하지만 0 주변 몇 cm 까지를 「손목」이라
+# 부를지는 표현의 문제라 조사에 답이 없다 — 그래서 이 값만 합의로 정했다.
+#
+# ⚠️ **대칭인 이유는 위 DRAPE_ALLOWANCE 와 같다.** 입으면 소매가 팔을 타고 올라가니
+#    평면 +2cm 는 실제로 손목에 걸린다는 주장이 가능하지만, 그건 실착 비교 데이터가
+#    있어야 넣을 수 있는 보정이다. 없으니 비대칭을 만들지 않는다.
+SLEEVE_BAND = 2.0
+
 
 @dataclass(frozen=True)
 class Landmarks:
@@ -118,3 +133,26 @@ def length_label(
         if garment_length >= 하한:
             return 문구
     return LENGTH_LABELS[0]
+
+
+def sleeve_label(sleeve_diff: float | None) -> str | None:
+    """소매 길이 차로 소매 문구를 고른다. 차이를 모르면 판정하지 않는다.
+
+    의류 소매길이도 사용자 팔길이도 선택 입력이라 `fit.ease.sleeve_diff` 가 None 을
+    낼 수 있다. 그 경우 그럴듯한 문구를 만들지 말고 None 을 낸다 — 계약상
+    `sleeveLabel` 은 선택 필드고, 프론트에 이미 None 분기가 있다.
+
+    ⚠️ **반팔도 「손목 위」로 답한다.** 문구 3종이 확정이라 「반팔」을 새로 만들지
+       않는다 (CLAUDE.md 1절 — 목록에 없는 표현을 만들지 않는다). 차이가 −39cm 든
+       −3cm 든 소매가 손목 위에서 끝난다는 사실은 같고, **얼마나 위인지는
+       `sleeveDiff` 숫자가 그대로 들고 간다** — 문구가 못 하는 말을 숫자가 한다.
+    """
+    if sleeve_diff is None:
+        return None
+    위, 손목, 덮음 = SLEEVE_LABELS
+    # 하한 포함·상한 미포함 — 핏 등급 임계값(0/6/14/24)과 같은 규칙이다
+    if sleeve_diff >= SLEEVE_BAND:
+        return 덮음
+    if sleeve_diff >= -SLEEVE_BAND:
+        return 손목
+    return 위

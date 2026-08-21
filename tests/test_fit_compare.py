@@ -130,8 +130,8 @@ class Test직렬화:
             "waistEase": 24,
             "shoulderDiff": 4,
             "sleeveDiff": 2,
-            "lengthLabel": None,
-            "sleeveLabel": None,
+            "lengthLabel": None,          # 기본_몸() 에 키가 없다
+            "sleeveLabel": "손등 일부 덮음",  # 60 − 58 = +2.0, 하한 포함
             "confidence": "실측",
             "preferredGrade": "레귤러핏",
             "gradeDistance": 0,
