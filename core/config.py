@@ -24,6 +24,15 @@ class Settings(BaseSettings):
     # 모델은 코드가 아니라 환경변수로 바꾼다 — 갈아 끼울 때 배포만 하면 된다
     image_model: str = "gpt-image-2"
 
+    # ── 전신 사진 비전 검증 (D2) ──
+    # ⚠️ **끌 수 있게 둔 것이 요점이다.** 업로드 입구에 새 실패 모드를 하나 놓는
+    #    일이라, 오판이 나면 코드가 아니라 이 값으로 즉시 끈다 (`VISION_CHECK=false`).
+    #    꺼도 해상도·포맷 검사(images/validate.py)는 그대로 돈다.
+    vision_check: bool = True
+    # gpt-5-nano 도 4/4 를 맞혔지만 mini 가 **더 빨랐다** (2.6~4.7s vs 4.5~7.2s).
+    # 업로드 경로라 지연이 곧 UX 다
+    vision_model: str = "gpt-5-mini"
+
     # ── CORS ──
     # 정해진 도메인은 여기 쉼표로 나열한다. 프론트 배포처가 확정되면 이쪽이 정답이다
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
